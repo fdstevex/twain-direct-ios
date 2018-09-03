@@ -214,7 +214,7 @@ class BlockDownloader {
         log.info("Starting download of block \(blockNum)")
         let body = ReadImageBlockRequest(sessionId: sessionID, imageBlockNum: blockNum)
         request.httpBody = try? JSONEncoder().encode(body)
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        let task = session.urlSession.dataTask(with: request) { (data, response, error) in
             guard let data = data, let urlResponse = response as? HTTPURLResponse else {
                 downloadError(BlockDownloaderError.noResponseBody)
                 return

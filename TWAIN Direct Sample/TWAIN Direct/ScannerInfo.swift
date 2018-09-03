@@ -9,26 +9,33 @@
 import Foundation
 
 struct ScannerInfo : Codable {
-    let url: URL
-    let name: String
-    let fqdn: String
-    let txtDict: Dictionary<String, String>
-
-    var friendlyName: String? {
-        get {
-            return txtDict["ty"]
-        }
+    enum ConnectionType: String {
+        case local = "local"
+        case cloud = "cloud"
     }
 
-    var note: String? {
-        get {
-            return txtDict["note"]
-        }
+    // Construct ScannerInfo for a cloud scanner
+    static func cloudScannerInfo(url: URL, name: String, note: String?, APIURL: URL, scannerID: String, accessToken: String, refreshToken: String) -> ScannerInfo {
+        return ScannerInfo(url: url, connectionType: ConnectionType.cloud.rawValue, name: name, note: note, fqdn: url.host!, cloudAPIURL: APIURL, cloudScannerID: scannerID, cloudAccessToken: accessToken, cloudRefreshToken: refreshToken)
     }
     
-    var type: String? {
-        get {
-            return txtDict["type"]
-        }
+    // Construct ScannerInfo for a local scanner
+    static func localScannerInfo(url: URL, name: String, note: String?, fqdn: String) -> ScannerInfo {
+        return ScannerInfo(url: url, connectionType: ConnectionType.local.rawValue, name: name, note: note, fqdn: fqdn, cloudAPIURL: nil, cloudScannerID: nil, cloudAccessToken: nil, cloudRefreshToken: nil)
     }
+    
+    let url: URL
+
+    // Value from ConnectionType enum
+    let connectionType: String
+    
+    let name: String
+    let note: String?
+    let fqdn: String
+
+    // API to the base cloud API endpoint
+    let cloudAPIURL: URL?
+    let cloudScannerID: String?
+    let cloudAccessToken: String?
+    let cloudRefreshToken: String?
 }

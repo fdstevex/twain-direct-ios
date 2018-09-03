@@ -41,7 +41,7 @@ class ScannerPickerTableViewController: UITableViewController {
         let titleLabel = cell.viewWithTag(1) as! UILabel
         let bodyLabel = cell.viewWithTag(2) as! UILabel
         
-        titleLabel.text = scannerInfo.friendlyName
+        titleLabel.text = scannerInfo.name
         
         var bodyText = "\(scannerInfo.url)"
         if let note = scannerInfo.note {

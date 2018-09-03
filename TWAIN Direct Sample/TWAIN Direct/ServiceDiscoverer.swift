@@ -76,8 +76,13 @@ class ServiceDiscoverer : NSObject {
             return nil
         }
         
-        let scannerInfo = ScannerInfo(url: url, name: service.name, fqdn: fqdn, txtDict: txtDict)
-        return scannerInfo
+        if let name = txtDict["ty"],
+            let note = txtDict["note"] {
+            let scannerInfo = ScannerInfo.localScannerInfo(url: url, name: name, note: note, fqdn: fqdn)
+            return scannerInfo
+        }
+
+        return nil
     }
 }
 
@@ -110,9 +115,9 @@ extension ServiceDiscoverer : NetServiceDelegate {
     
     func netServiceDidResolveAddress(_ sender: NetService) {
         if let scannerInfo = scannerInfoFrom(service:sender) {
-            let key = "\(scannerInfo.url.absoluteString)\(String(describing:scannerInfo.friendlyName))"
+            let key = "\(scannerInfo.url.absoluteString)\(String(describing:scannerInfo.name))"
             
-            log.info("Discovered \(scannerInfo.friendlyName ?? "") at \(scannerInfo.url)")
+            log.info("Discovered \(scannerInfo.name ?? "") at \(scannerInfo.url)")
             discoveredScanners[key] = scannerInfo
             delegate?.discoverer(self, didDiscover: Array(discoveredScanners.values))
         }

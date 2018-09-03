@@ -18,6 +18,7 @@ class MainTableTableViewController: UITableViewController {
     @IBOutlet weak var selectedTaskLabel: UILabel!
     @IBOutlet weak var sessionStatusLabel: UILabel!
     @IBOutlet weak var scannedImagesLabel: UILabel!
+    @IBOutlet weak var selectScannerCell: UITableViewCell!
     
     var session: Session?
     var imageReceiver: ImageReceiver?
@@ -96,9 +97,8 @@ class MainTableTableViewController: UITableViewController {
             log.error("Failed deserializing scannerInfo: \(error)")
             return
         }
-        
-        let scanner = ScannerInfo(url: scannerInfo.url, name: scannerInfo.name, fqdn: scannerInfo.fqdn, txtDict: [String:String]())
-        session = Session(scanner: scanner)
+
+        session = Session(scanner: scannerInfo)
         
         imageReceiver = ImageReceiver()
         session?.delegate = imageReceiver
@@ -284,7 +284,7 @@ class MainTableTableViewController: UITableViewController {
         do {
             let scannerInfo = try JSONDecoder().decode(ScannerInfo.self, from:scannerJSON.data(using: .utf8)!)
             
-            if (!scannersDiscovered.contains { $0.friendlyName == scannerInfo.friendlyName }) {
+            if (!scannersDiscovered.contains { $0.name == scannerInfo.name }) {
                 // Scanner is not in the mDNS discovery list
                 return false
             }
@@ -317,12 +317,10 @@ class MainTableTableViewController: UITableViewController {
         if let scannerJSON = UserDefaults.standard.string(forKey: "scanner") {
             do {
                 let scannerInfo = try JSONDecoder().decode(ScannerInfo.self, from: (scannerJSON.data(using: .utf8))!)
-                if let scannerName = scannerInfo.friendlyName {
-                    label = scannerName
-                    
-                    if (!scannersDiscovered.contains { $0.friendlyName == scannerName }) {
-                        label = label + " (Offline)"
-                    }
+                
+                label = scannerInfo.name
+                if (!scannersDiscovered.contains { $0.name == scannerInfo.name }) {
+                    label = label + " (Offline)"
                 }
             } catch {
                 log.error("Error deserializing scannerInfo: \(String(describing:error))")
@@ -363,6 +361,30 @@ class MainTableTableViewController: UITableViewController {
 
         text = text + "\n\(lastImageNameReceived)"
         self.sessionStatusLabel.text = text
+    }
+
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if tableView.cellForRow(at: indexPath) == selectScannerCell {
+            let title = NSLocalizedString("Local or Cloud", comment: "Alert title")
+            let message = NSLocalizedString("Use a TWAIN Local scanner (on your local network) or select a scanner using TWAIN Cloud?", comment: "Alert title")
+            let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+            
+            let localTitle = NSLocalizedString("Local", comment: "Scanner source option")
+            let cloudTitle = NSLocalizedString("Cloud", comment: "Scanner source option")
+            alert.addAction(UIAlertAction(title: localTitle, style: .default, handler: { (action) in
+                if let vc = self.storyboard?.instantiateViewController(withIdentifier: "scannerPicker") {
+                    self.navigationController?.pushViewController(vc, animated: true)
+                }
+            }))
+
+            alert.addAction(UIAlertAction(title: cloudTitle, style: .default, handler: { (action) in
+                if let vc = self.storyboard?.instantiateViewController(withIdentifier: "cloudAuth") {
+                    self.navigationController?.pushViewController(vc, animated: true)
+                }
+            }))
+
+            present(alert, animated: true)
+        }
     }
 }
 

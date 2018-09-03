@@ -15,6 +15,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
     
+    // If we're using a cloud scanner, this is the CloudConnection.  This is essentially
+    // a singleton in this app, but having multiple scanners active with multiple
+    // CloudConnection instances is possible.
+    var cloudConnection: CloudConnection?
+
     // SwiftyBeaver Log file destination, so we can find it from the log view
     var fileDestination = FileDestination()
 

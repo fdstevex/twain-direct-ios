@@ -97,7 +97,7 @@ enum AsyncResponse<T> {
     case Failure(Error?)
 }
 
-class Session {
+class Session : NSObject {
     public enum State: String, Codable {
         case noSession
         case ready
@@ -129,17 +129,29 @@ class Session {
     var shouldWaitForEvents = false
     var waitForEventsRetryCount = 0
     let numWaitForEventsRetriesAllowed = 3
-    
+    var captureStarted = false
     
     var infoExResponse: InfoExResponse?
 
-    var longPollSession: URLSession?
     var blockDownloader: BlockDownloader?
 
     let lock = NSRecursiveLock()
     
     var scanner: ScannerInfo
     weak var delegate: SessionDelegate?
+    
+    // URL Session that allows connection to untrusted SSL
+    var _urlSession: URLSession? = nil
+    var urlSession: URLSession {
+        if let session = self._urlSession {
+            return session
+        }
+        let config = URLSessionConfiguration.default
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
+        self._urlSession = session
+        return session
+    }
     
     init(scanner:ScannerInfo) {
         self.scanner = scanner
@@ -168,7 +180,8 @@ class Session {
         }
 
         // Close the session if we're done capturing, there are no more blocks, and we're not paused
-        if (session.doneCapturing ?? false && session.imageBlocksDrained ?? false && !self.paused && !stopping) {
+        if (captureStarted && session.doneCapturing ?? false && session.imageBlocksDrained ?? false && !self.paused && !stopping) {
+            captureStarted = false
             self.closeSession(completion: { (result) in
                 switch (result) {
                 case .Success:
@@ -207,7 +220,7 @@ class Session {
         }
         var request = URLRequest(url:url)
         request.addValue("", forHTTPHeaderField: "X-Privet-Token")
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
             guard let data = data else {
                 // No response data
                 completion(AsyncResult.Failure(nil))
@@ -259,7 +272,7 @@ class Session {
         
         let createSessionRequest = CreateSessionRequest()
         request.httpBody = try? JSONEncoder().encode(createSessionRequest)
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
             guard let data = data else {
                 // No response data
                 completion(AsyncResult.Failure(nil))
@@ -295,8 +308,7 @@ class Session {
         task.resume()
     }
     
-    // Start a waitForEvents call. There must be an active session. Will do nothing if
-    // there's already a longPollSession.
+    // Start a waitForEvents call. There must be an active session.
     private func waitForEvents() {
         if (!self.shouldWaitForEvents || (self.waitForEventsRetryCount >= self.numWaitForEventsRetriesAllowed)) {
             return
@@ -307,87 +319,85 @@ class Session {
             lock.unlock()
         }
         
-        if (self.longPollSession == nil) {
-            var urlRequest:URLRequest
-            do {
-                urlRequest = try createURLRequest(method: "POST")
-            } catch {
-                delegate?.session(self, didEncounterError: error)
-                return
+        var urlRequest:URLRequest
+        do {
+            urlRequest = try createURLRequest(method: "POST")
+        } catch {
+            delegate?.session(self, didEncounterError: error)
+            return
+        }
+        
+        guard let sessionID = sessionID else {
+            log.error("Unexpected: waitForEvents, but there's no session")
+            return
+        }
+        
+        let body = WaitForEventsRequest(sessionId: sessionID, sessionRevision: sessionRevision)
+        urlRequest.httpBody = try? JSONEncoder().encode(body)
+        
+        let task = self.urlSession.dataTask(with: urlRequest) { (data, response, error) in
+            self.lock.lock();
+            defer {
+                self.lock.unlock();
             }
-
-            guard let sessionID = sessionID else {
-                log.error("Unexpected: waitForEvents, but there's no session")
-                return
-            }
-
-            let body = WaitForEventsRequest(sessionId: sessionID, sessionRevision: sessionRevision)
-            urlRequest.httpBody = try? JSONEncoder().encode(body)
             
-            let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
-                self.lock.lock();
-                defer {
-                    self.lock.unlock();
-                }
-
-                if (error != nil) {
-                    // Failure - retry up to retry count
-                    log.error("Error detected in waitForEvents: \(String(describing:error))")
-                    self.waitForEventsRetryCount = self.waitForEventsRetryCount + 1
+            if (error != nil) {
+                // Failure - retry up to retry count
+                log.error("Error detected in waitForEvents: \(String(describing:error))")
+                self.waitForEventsRetryCount = self.waitForEventsRetryCount + 1
+                self.waitForEvents()
+                return
+            }
+            
+            do {
+                guard let data = data else {
+                    // No response data .. queue up another wait
                     self.waitForEvents()
-                    return
-                }
-
-                // Clear the reference to this session so we can start a new one
-                self.longPollSession = nil
-
-                do {
-                    guard let data = data else {
-                        // No response data .. queue up another wait
-                        self.waitForEvents()
-                        return
-                    }
-                    
-                    let response = try JSONDecoder().decode(WaitForEventsResponse.self, from: data)
-                    if (!response.results.success) {
-                        self.shouldWaitForEvents = false
-                        log.error("waitForEvents reported failure: \(response.results)")
-                        self.waitForEventsRetryCount = self.waitForEventsRetryCount + 1
-                        return
-                    }
-                    
-                    response.results.events?.forEach { event in
-                        if (event.session.revision < self.sessionRevision) {
-                            // We've already processed this event
-                            return
-                        }
-
-                        self.updateSession(event.session)
-                        
-                        log.info("Received event: \(event)")
-
-                        if event.session.doneCapturing ?? false &&
-                            event.session.imageBlocksDrained ?? false {
-                            // We're done capturing and all image blocks drained -
-                            // No need to keep polling
-                            self.shouldWaitForEvents = false
-                        }
-                    }
-
-                    // Processed succesfully - reset the retry count
-                    self.waitForEventsRetryCount = 0
-
-                    // Queue up another wait
-                    self.waitForEvents()
-                } catch {
-                    log.error("Error deserializing events: \(error)")
                     return
                 }
                 
+                let str = String(data: data, encoding: .utf8)
+                log.info(str)
+
+                let response = try JSONDecoder().decode(WaitForEventsResponse.self, from: data)
+                if (!response.results.success) {
+                    self.shouldWaitForEvents = false
+                    log.error("waitForEvents reported failure: \(response.results)")
+                    self.waitForEventsRetryCount = self.waitForEventsRetryCount + 1
+                    return
+                }
+                
+                response.results.events?.forEach { event in
+                    if (event.session.revision < self.sessionRevision) {
+                        // We've already processed this event
+                        return
+                    }
+                    
+                    self.updateSession(event.session)
+                    
+                    log.info("Received event: \(event)")
+                    
+                    if event.session.doneCapturing ?? false &&
+                        event.session.imageBlocksDrained ?? false {
+                        // We're done capturing and all image blocks drained -
+                        // No need to keep polling
+                        self.shouldWaitForEvents = false
+                    }
+                }
+                
+                // Processed succesfully - reset the retry count
+                self.waitForEventsRetryCount = 0
+                
+                // Queue up another wait
+                self.waitForEvents()
+            } catch {
+                log.error("Error deserializing events: \(error)")
+                return
             }
             
-            task.resume()
         }
+        
+        task.resume()
     }
 
     func releaseImageBlocks(from fromBlock: Int, to toBlock: Int, completion: @escaping (AsyncResult)->()) {
@@ -409,7 +419,7 @@ class Session {
 
         let body = ReleaseImageBlocksRequest(sessionId: sessionID, fromBlock:fromBlock, toBlock: toBlock)
         request.httpBody = try? JSONEncoder().encode(body)
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
             
             guard let data = data else {
                 // No response data
@@ -459,7 +469,7 @@ class Session {
 
         let body = CloseSessionRequest(sessionId: sessionID)
         request.httpBody = try? JSONEncoder().encode(body)
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
             guard let data = data else {
                 // No response data
                 completion(AsyncResult.Failure(nil))
@@ -530,7 +540,7 @@ class Session {
 
         request.httpBody = mergedBody
         
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
             guard let data = data else {
                 // No response data
                 completion(AsyncResult.Failure(SessionError.invalidResponse(detail: "No response data")))
@@ -570,7 +580,7 @@ class Session {
         
         request.httpBody = try? JSONEncoder().encode(StartCapturingRequest(sessionId: sessionID))
 
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
             guard let data = data else {
                 // No response data
                 completion(.Failure(nil))
@@ -586,6 +596,8 @@ class Session {
                 if let session = startCapturingResponse.results.session {
                     self.updateSession(session);
                 }
+                
+                self.captureStarted = true
                 completion(.Success(startCapturingResponse))
             } catch {
                 completion(.Failure(error))
@@ -610,7 +622,7 @@ class Session {
         
         request.httpBody = try? JSONEncoder().encode(StopCapturingRequest(sessionId: sessionID))
         
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
             guard let data = data else {
                 // No response data
                 completion(.Failure(nil))
@@ -632,5 +644,13 @@ class Session {
             }
         }
         task.resume()
+    }
+}
+
+extension Session : URLSessionDelegate {
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        let trust = challenge.protectionSpace.serverTrust!
+        let credential = URLCredential(trust: trust)
+        completionHandler(.useCredential, credential)
     }
 }
