@@ -11,18 +11,24 @@ import UIKit
 class ScannerPickerTableViewController: UITableViewController {
 
     var serviceDiscoverer: ServiceDiscoverer?
+    var cloudConnection: CloudConnection?
     var scanners = [ScannerInfo]()
     
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        serviceDiscoverer = ServiceDiscoverer(delegate: self)
+        if (cloudConnection == nil) {
+            serviceDiscoverer = ServiceDiscoverer(delegate: self)
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
         serviceDiscoverer?.start()
+        cloudConnection?.getScannerList() {
+            response in
+        }
     }
     
     override func viewWillDisappear(_ animated: Bool) {
