@@ -27,7 +27,18 @@ class ScannerPickerTableViewController: UITableViewController {
 
         serviceDiscoverer?.start()
         cloudConnection?.getScannerList() {
-            response in
+            scanners in
+            switch scanners {
+            case AsyncResponse.Success(let scanners):
+                    OperationQueue.main.addOperation {
+                        self.scanners = scanners
+                        self.tableView.reloadData()
+                    }
+                    break;
+            case AsyncResponse.Failure(let error):
+                log.error("Error fetching scanner list from cloud: \(String(describing:error))")
+                    break;
+            }
         }
     }
     

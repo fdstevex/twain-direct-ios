@@ -36,7 +36,7 @@ class CloudConnection {
         self.refreshToken = refreshToken
     }
     
-    func getScannerList(completionHandler: @escaping (AsyncResponse<String>)->()) {
+    func getScannerList(completionHandler: @escaping (AsyncResponse<[ScannerInfo]>)->()) {
         getEventBrokerInfo() { response in
             self.getScannerListJSON() { response in
                 guard case .Success(let data) = response else {
@@ -49,8 +49,30 @@ class CloudConnection {
                     return
                 }
 
-                let str = String(data: data, encoding: .utf8)
-                log.info(str)
+                // Extract the info we need to populate an array of ScannerInfo
+                guard let array = try? JSONSerialization.jsonObject(with: data, options: []) else {
+                    completionHandler(.Failure(SessionError.invalidJSON))
+                    return;
+                }
+
+                var scanners = [ScannerInfo]()
+
+                if let array = array as? [NSDictionary] {
+                    for scannerDict in array {
+                        guard let name = scannerDict["name"] as? String,
+                            let note = scannerDict["description"] as? String,
+                            let id = scannerDict["id"] as? String else {
+                                log.warning("Unusable entry in scanners array: \(scannerDict)")
+                                continue
+                        }
+                        
+                        let scannerURL = self.apiURL.appendingPathComponent("scanners/" + id)
+                        let scannerInfo = ScannerInfo.cloudScannerInfo(url: scannerURL, name: name, note: note, APIURL: self.apiURL, scannerID: id, accessToken: self.accessToken, refreshToken: self.refreshToken)
+                        scanners.append(scannerInfo)
+                    }
+                }
+                
+                completionHandler(AsyncResponse.Success(scanners))
             }
         }
     }

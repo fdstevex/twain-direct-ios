@@ -15,7 +15,7 @@ struct ScannerInfo : Codable {
     }
 
     // Construct ScannerInfo for a cloud scanner
-    static func cloudScannerInfo(url: URL, name: String, note: String?, APIURL: URL, scannerID: String, accessToken: String, refreshToken: String) -> ScannerInfo {
+    static func cloudScannerInfo(url: URL, name: String, note: String?, APIURL: URL, scannerID: String, accessToken: String, refreshToken: String?) -> ScannerInfo {
         return ScannerInfo(url: url, connectionType: ConnectionType.cloud.rawValue, name: name, note: note, fqdn: url.host!, cloudAPIURL: APIURL, cloudScannerID: scannerID, cloudAccessToken: accessToken, cloudRefreshToken: refreshToken)
     }
     
