@@ -11,10 +11,15 @@
 		84189C24213C1C650075EAF2 /* AuthWebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84189C23213C1C650075EAF2 /* AuthWebViewController.swift */; };
 		84189C27213C1F6F0075EAF2 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 84189C26213C1F6F0075EAF2 /* WebKit.framework */; };
 		84189C2A213D42A00075EAF2 /* CloudConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84189C29213D42A00075EAF2 /* CloudConnection.swift */; };
+		841AEED7214292B800B26340 /* ScannerRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841AEED6214292B800B26340 /* ScannerRPC.swift */; };
+		841AEED92142941100B26340 /* CloudScannerRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841AEED82142941100B26340 /* CloudScannerRPC.swift */; };
+		841AEEDB2142941D00B26340 /* LocalScannerRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841AEEDA2142941C00B26340 /* LocalScannerRPC.swift */; };
 		843963961F797D6700115128 /* ScannerPickerTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843963951F797D6700115128 /* ScannerPickerTableViewController.swift */; };
 		843963991F798B1300115128 /* TaskPickerTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843963981F798B1300115128 /* TaskPickerTableViewController.swift */; };
 		8441CB181F8104AA0049D02E /* TaskDownloaderWebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8441CB171F8104AA0049D02E /* TaskDownloaderWebViewController.swift */; };
 		844C6C14213E92AB00A5AD92 /* CloudEventBrokerInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844C6C13213E92AB00A5AD92 /* CloudEventBrokerInfo.swift */; };
+		844C6C16214135EB00A5AD92 /* CloudEventBroker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844C6C15214135EB00A5AD92 /* CloudEventBroker.swift */; };
+		844C6C1821413B7E00A5AD92 /* CloudSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844C6C1721413B7E00A5AD92 /* CloudSession.swift */; };
 		84692A631F87AFBD00E138FE /* RequestBodies.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84692A621F87AFBD00E138FE /* RequestBodies.swift */; };
 		846F7D281F801D49004E6EB2 /* ImageReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846F7D271F801D49004E6EB2 /* ImageReceiver.swift */; };
 		846F7D2A1F828D55004E6EB2 /* ImagesTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846F7D291F828D55004E6EB2 /* ImagesTableViewController.swift */; };
@@ -44,11 +49,16 @@
 		84189C23213C1C650075EAF2 /* AuthWebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthWebViewController.swift; sourceTree = "<group>"; };
 		84189C26213C1F6F0075EAF2 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		84189C29213D42A00075EAF2 /* CloudConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudConnection.swift; sourceTree = "<group>"; };
+		841AEED6214292B800B26340 /* ScannerRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerRPC.swift; sourceTree = "<group>"; };
+		841AEED82142941100B26340 /* CloudScannerRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudScannerRPC.swift; sourceTree = "<group>"; };
+		841AEEDA2142941C00B26340 /* LocalScannerRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalScannerRPC.swift; sourceTree = "<group>"; };
 		843963951F797D6700115128 /* ScannerPickerTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerPickerTableViewController.swift; sourceTree = "<group>"; };
 		843963971F79835300115128 /* TWAIN Direct Sample.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "TWAIN Direct Sample.entitlements"; sourceTree = "<group>"; };
 		843963981F798B1300115128 /* TaskPickerTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPickerTableViewController.swift; sourceTree = "<group>"; };
 		8441CB171F8104AA0049D02E /* TaskDownloaderWebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDownloaderWebViewController.swift; sourceTree = "<group>"; };
 		844C6C13213E92AB00A5AD92 /* CloudEventBrokerInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudEventBrokerInfo.swift; sourceTree = "<group>"; };
+		844C6C15214135EB00A5AD92 /* CloudEventBroker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudEventBroker.swift; sourceTree = "<group>"; };
+		844C6C1721413B7E00A5AD92 /* CloudSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSession.swift; sourceTree = "<group>"; };
 		84692A621F87AFBD00E138FE /* RequestBodies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestBodies.swift; sourceTree = "<group>"; };
 		846F7D271F801D49004E6EB2 /* ImageReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageReceiver.swift; sourceTree = "<group>"; };
 		846F7D291F828D55004E6EB2 /* ImagesTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesTableViewController.swift; sourceTree = "<group>"; };
@@ -112,6 +122,9 @@
 			children = (
 				84189C29213D42A00075EAF2 /* CloudConnection.swift */,
 				844C6C13213E92AB00A5AD92 /* CloudEventBrokerInfo.swift */,
+				844C6C15214135EB00A5AD92 /* CloudEventBroker.swift */,
+				844C6C1721413B7E00A5AD92 /* CloudSession.swift */,
+				841AEED82142941100B26340 /* CloudScannerRPC.swift */,
 			);
 			path = Cloud;
 			sourceTree = "<group>";
@@ -192,7 +205,9 @@
 				84B6A6A21F7C24B90024F4A5 /* BlockDownloader.swift */,
 				8474E2531F7D653100B497A2 /* TWAIN Direct Sample-Bridging-Header.h */,
 				84692A621F87AFBD00E138FE /* RequestBodies.swift */,
+				841AEEDA2142941C00B26340 /* LocalScannerRPC.swift */,
 				84C4B5211F8FC62100456217 /* MultipartExtractor.swift */,
+				841AEED6214292B800B26340 /* ScannerRPC.swift */,
 			);
 			path = "TWAIN Direct";
 			sourceTree = "<group>";
@@ -313,23 +328,28 @@
 				84189C2A213D42A00075EAF2 /* CloudConnection.swift in Sources */,
 				84A1C6C51F74420F0062C442 /* AES256CBC.swift in Sources */,
 				84A1C6C91F74420F0062C442 /* FileDestination.swift in Sources */,
+				844C6C16214135EB00A5AD92 /* CloudEventBroker.swift in Sources */,
 				84189C24213C1C650075EAF2 /* AuthWebViewController.swift in Sources */,
 				843963991F798B1300115128 /* TaskPickerTableViewController.swift in Sources */,
 				844C6C14213E92AB00A5AD92 /* CloudEventBrokerInfo.swift in Sources */,
 				84C96AA31F75818600F2038D /* MainTableTableViewController.swift in Sources */,
 				843963961F797D6700115128 /* ScannerPickerTableViewController.swift in Sources */,
+				841AEEDB2142941D00B26340 /* LocalScannerRPC.swift in Sources */,
 				84692A631F87AFBD00E138FE /* RequestBodies.swift in Sources */,
 				84A1C6C81F74420F0062C442 /* ConsoleDestination.swift in Sources */,
 				84C96AA51F758F7200F2038D /* Session.swift in Sources */,
+				841AEED7214292B800B26340 /* ScannerRPC.swift in Sources */,
 				84B595A81F7437C4009DD9A4 /* ServiceDiscoverer.swift in Sources */,
 				846F7D2A1F828D55004E6EB2 /* ImagesTableViewController.swift in Sources */,
 				84A1C6C61F74420F0062C442 /* Base64.swift in Sources */,
 				8474E2561F7D653200B497A2 /* multipart_parser.c in Sources */,
 				84B595951F743715009DD9A4 /* AppDelegate.swift in Sources */,
+				841AEED92142941100B26340 /* CloudScannerRPC.swift in Sources */,
 				8441CB181F8104AA0049D02E /* TaskDownloaderWebViewController.swift in Sources */,
 				84C4B5221F8FC62100456217 /* MultipartExtractor.swift in Sources */,
 				846F7D281F801D49004E6EB2 /* ImageReceiver.swift in Sources */,
 				84A1C6CA1F74420F0062C442 /* Filter.swift in Sources */,
+				844C6C1821413B7E00A5AD92 /* CloudSession.swift in Sources */,
 				84B6A6A31F7C24B90024F4A5 /* BlockDownloader.swift in Sources */,
 				84A1C6C71F74420F0062C442 /* BaseDestination.swift in Sources */,
 				84189C22213C1BCD0075EAF2 /* CloudAuthViewController.swift in Sources */,

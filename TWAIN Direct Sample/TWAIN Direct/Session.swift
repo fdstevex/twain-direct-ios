@@ -24,6 +24,7 @@ enum SessionError : Error {
     case invalidState
     case unexpectedError(detail: String)
     case invalidResponse(detail: String)
+    case rpcFailure(statusCode: Int)
 }
 
 // These aren't actually localizable (not returned through NSLocalizedString) because these are states the app
@@ -74,6 +75,8 @@ extension SessionError: LocalizedError {
                 return "unexpected error \(detail)"
             case .invalidResponse(let detail):
                 return "invalid response \(detail)"
+            case .rpcFailure(let statusCode):
+                return "RPC failure, http statusCode \(statusCode)"
             }
         }
     }
@@ -118,6 +121,8 @@ class Session : NSObject {
         case staple
     }
     
+    let url: URL
+    var apiURL: URL?
     var sessionID: String?
     var sessionRevision = 0
     var sessionStatus: SessionStatus?
@@ -131,30 +136,29 @@ class Session : NSObject {
     let numWaitForEventsRetriesAllowed = 3
     var captureStarted = false
     
-    var infoExResponse: InfoExResponse?
-
     var blockDownloader: BlockDownloader?
 
     let lock = NSRecursiveLock()
     
-    var scanner: ScannerInfo
     weak var delegate: SessionDelegate?
     
-    // URL Session that allows connection to untrusted SSL
-    var _urlSession: URLSession? = nil
-    var urlSession: URLSession {
-        if let session = self._urlSession {
-            return session
-        }
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        let session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
-        self._urlSession = session
-        return session
+    let cloudEventBroker: CloudEventBroker?
+    let cloudConnection: CloudConnection?
+    
+    var rpc: ScannerRPC?
+    
+    init(url: URL) {
+        self.cloudEventBroker = nil
+        self.cloudConnection = nil
+        self.url = url
+        self.rpc = LocalScannerRPC()
     }
     
-    init(scanner:ScannerInfo) {
-        self.scanner = scanner
+    init(url: URL, cloudEventBroker: CloudEventBroker, cloudConnection: CloudConnection) {
+        self.url = url
+        self.cloudEventBroker = cloudEventBroker
+        self.cloudConnection = cloudConnection
+        self.rpc = CloudScannerRPC()
     }
 
     func updateSession(_ session: SessionResponse) {
@@ -215,101 +219,94 @@ class Session : NSObject {
     
     // Get a Privet token, and open a session with the scanner
     func open(completion: @escaping (AsyncResult)->()) {
-        guard let url = URL(string: "/privet/infoex", relativeTo: scanner.url) else {
-            return
-        }
-        var request = URLRequest(url:url)
-        request.addValue("", forHTTPHeaderField: "X-Privet-Token")
-        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
-            guard let data = data else {
-                // No response data
-                completion(AsyncResult.Failure(nil))
-                return
-            }
+        let requestURL = url.appendingPathComponent("privet/infoex")
 
-            do {
-                let infoExResponse = try JSONDecoder().decode(InfoExResponse.self, from: data)
-                log.info("infoex response: \(infoExResponse)")
-                self.infoExResponse = infoExResponse
-                self.createSession(completion: completion)
-            } catch {
-                completion(AsyncResult.Failure(error))
-            }
+        do {
+            try rpc?.scannerRequest(url: requestURL, method: "GET", requestBody: nil, completion: { (response) in
+                switch response {
+                case AsyncResponse.Failure(let error):
+                    completion(AsyncResult.Failure(error))
+                case AsyncResponse.Success(let data):
+                    do {
+                        let infoExResponse = try JSONDecoder().decode(InfoExResponse.self, from: data)
+                        log.info("infoex response: \(infoExResponse)")
+                        self.rpc?.setPrivetToken(infoExResponse.privetToken)
+                        guard var apiPath = infoExResponse.api?.first else {
+                            log.info("Expected api property in infoex response")
+                            completion(AsyncResult.Failure(nil))
+                            return
+                        }
+                        if apiPath.starts(with: "/") {
+                            apiPath.remove(at: apiPath.startIndex)
+                        }
+                        self.apiURL = self.url.appendingPathComponent(apiPath)
+                        self.createSession(completion: completion)
+                    } catch {
+                        completion(AsyncResult.Failure(error))
+                    }
+                }
+            })
+        } catch {
+            completion(AsyncResult.Failure(error))
         }
-        task.resume()
     }
 
-    func createURLRequest(method: String) throws -> URLRequest {
-        guard let infoExResponse = infoExResponse else {
-            throw SessionError.invalidState
-        }
-        
-        guard let api = infoExResponse.api?.first else {
-            throw SessionError.invalidResponse(detail:"infoex response missing api")
-        }
-        
-        guard let url = URL(string: api, relativeTo: scanner.url) else {
-            throw SessionError.unexpectedError(detail:"error appending \(api) to \(scanner.url)")
-        }
-        
-        var request = URLRequest(url:url)
-        request.setValue(infoExResponse.privetToken, forHTTPHeaderField: "X-Privet-Token")
-        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
-        request.httpMethod = method
-        return request
-    }
     
     // Create the session. If successful, starts the event listener.
     func createSession(completion: @escaping (AsyncResult)->()) {
-        var request:URLRequest
-        do {
-            request = try createURLRequest(method: "POST")
-        } catch {
-            completion(.Failure(error))
+        guard let rpc = rpc, let apiURL = apiURL else {
+            completion(.Failure(SessionError.unexpectedError(detail: "Missing rpc or apiURL")))
             return
         }
         
         let createSessionRequest = CreateSessionRequest()
-        request.httpBody = try? JSONEncoder().encode(createSessionRequest)
-        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
-            guard let data = data else {
-                // No response data
-                completion(AsyncResult.Failure(nil))
-                return
-            }
-            
-            do {
-                let createSessionResponse = try JSONDecoder().decode(CreateSessionResponse.self, from: data)
-                if (!createSessionResponse.results.success) {
-                    let error = SessionError.createSessionFailed(code:createSessionResponse.results.code)
-                    completion(AsyncResult.Failure(error))
-                    return
+        let httpBody = try? JSONEncoder().encode(createSessionRequest)
+        do {
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: httpBody) { (response) in
+                switch response {
+                case .Failure(let error):
+                    completion(.Failure(error))
+                case .Success(let data):
+                    do {
+                        let createSessionResponse = try JSONDecoder().decode(CreateSessionResponse.self, from: data)
+                        if (!createSessionResponse.results.success) {
+                            let error = SessionError.createSessionFailed(code:createSessionResponse.results.code)
+                            completion(AsyncResult.Failure(error))
+                            return
+                        }
+                        
+                        self.sessionID = createSessionResponse.results.session?.sessionId
+                        self.sessionRevision = 0
+                        if (self.sessionID == nil) {
+                            // Expected the result to have a session since success was true
+                            let error = SessionError.missingSessionID
+                            completion(AsyncResult.Failure(error))
+                            return
+                        }
+                        
+                        self.blockDownloader = BlockDownloader(session: self)
+                        
+                        self.shouldWaitForEvents = true
+                        self.waitForEvents();
+                        completion(AsyncResult.Success)
+                    } catch {
+                        completion(AsyncResult.Failure(error))
+                    }
                 }
-                
-                self.sessionID = createSessionResponse.results.session?.sessionId
-                self.sessionRevision = 0
-                if (self.sessionID == nil) {
-                    // Expected the result to have a session since success was true
-                    let error = SessionError.missingSessionID
-                    completion(AsyncResult.Failure(error))
-                    return
-                }
-                
-                self.blockDownloader = BlockDownloader(session: self)
-                
-                self.shouldWaitForEvents = true
-                self.waitForEvents();
-                completion(AsyncResult.Success)
-            } catch {
-                completion(AsyncResult.Failure(error))
             }
+        } catch {
+            completion(.Failure(error))
         }
-        task.resume()
     }
     
     // Start a waitForEvents call. There must be an active session.
     private func waitForEvents() {
+        guard let rpc = rpc, let apiURL = apiURL else {
+            // We've already checked for this
+            log.error("Can't waitForEvents - missing rpc or apiURL")
+            return
+        }
+
         if (!self.shouldWaitForEvents || (self.waitForEventsRetryCount >= self.numWaitForEventsRetriesAllowed)) {
             return
         }
@@ -319,93 +316,85 @@ class Session : NSObject {
             lock.unlock()
         }
         
-        var urlRequest:URLRequest
-        do {
-            urlRequest = try createURLRequest(method: "POST")
-        } catch {
-            delegate?.session(self, didEncounterError: error)
-            return
-        }
-        
         guard let sessionID = sessionID else {
             log.error("Unexpected: waitForEvents, but there's no session")
             return
         }
         
         let body = WaitForEventsRequest(sessionId: sessionID, sessionRevision: sessionRevision)
-        urlRequest.httpBody = try? JSONEncoder().encode(body)
-        
-        let task = self.urlSession.dataTask(with: urlRequest) { (data, response, error) in
-            self.lock.lock();
-            defer {
-                self.lock.unlock();
-            }
-            
-            if (error != nil) {
-                // Failure - retry up to retry count
-                log.error("Error detected in waitForEvents: \(String(describing:error))")
-                self.waitForEventsRetryCount = self.waitForEventsRetryCount + 1
-                self.waitForEvents()
-                return
-            }
-            
-            do {
-                guard let data = data else {
-                    // No response data .. queue up another wait
+        let requestBody = try? JSONEncoder().encode(body)
+
+        do {
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody) { (response) in
+                switch response {
+                case .Failure(let error):
+                    // Failure - retry up to retry count
+                    log.error("Error detected in waitForEvents: \(String(describing:error))")
+                    self.waitForEventsRetryCount = self.waitForEventsRetryCount + 1
                     self.waitForEvents()
                     return
-                }
-                
-                let str = String(data: data, encoding: .utf8)
-                log.info(str)
+                case .Success(let data):
+                    self.lock.lock();
+                    defer {
+                        self.lock.unlock();
+                    }
+                    
+                    do {
+                        if data.isEmpty {
+                            // No response data .. queue up another wait
+                            self.waitForEvents()
+                            return
+                        }
 
-                let response = try JSONDecoder().decode(WaitForEventsResponse.self, from: data)
-                if (!response.results.success) {
-                    self.shouldWaitForEvents = false
-                    log.error("waitForEvents reported failure: \(response.results)")
-                    self.waitForEventsRetryCount = self.waitForEventsRetryCount + 1
-                    return
-                }
-                
-                response.results.events?.forEach { event in
-                    if (event.session.revision < self.sessionRevision) {
-                        // We've already processed this event
+                        // Log the event response
+                        let str = String(data: data, encoding: .utf8) ?? ""
+                        log.info(str)
+                        
+                        let response = try JSONDecoder().decode(WaitForEventsResponse.self, from: data)
+                        if (!response.results.success) {
+                            self.shouldWaitForEvents = false
+                            log.error("waitForEvents reported failure: \(response.results)")
+                            self.waitForEventsRetryCount = self.waitForEventsRetryCount + 1
+                            return
+                        }
+                        
+                        response.results.events?.forEach { event in
+                            if (event.session.revision < self.sessionRevision) {
+                                // We've already processed this event
+                                return
+                            }
+                            
+                            self.updateSession(event.session)
+                            
+                            log.info("Received event: \(event)")
+                            
+                            if event.session.doneCapturing ?? false &&
+                                event.session.imageBlocksDrained ?? false {
+                                // We're done capturing and all image blocks drained -
+                                // No need to keep polling
+                                self.shouldWaitForEvents = false
+                            }
+                        }
+                        
+                        // Processed succesfully - reset the retry count
+                        self.waitForEventsRetryCount = 0
+                        
+                        // Queue up another wait
+                        self.waitForEvents()
+                    } catch {
+                        log.error("Error deserializing events: \(error)")
                         return
                     }
-                    
-                    self.updateSession(event.session)
-                    
-                    log.info("Received event: \(event)")
-                    
-                    if event.session.doneCapturing ?? false &&
-                        event.session.imageBlocksDrained ?? false {
-                        // We're done capturing and all image blocks drained -
-                        // No need to keep polling
-                        self.shouldWaitForEvents = false
-                    }
                 }
-                
-                // Processed succesfully - reset the retry count
-                self.waitForEventsRetryCount = 0
-                
-                // Queue up another wait
-                self.waitForEvents()
-            } catch {
-                log.error("Error deserializing events: \(error)")
-                return
             }
-            
+        } catch {
+            delegate?.session(self, didEncounterError: error)
         }
-        
-        task.resume()
     }
 
     func releaseImageBlocks(from fromBlock: Int, to toBlock: Int, completion: @escaping (AsyncResult)->()) {
-        var request:URLRequest
-        do {
-            request = try createURLRequest(method: "POST")
-        } catch {
-            delegate?.session(self, didEncounterError: error)
+        guard let rpc = rpc, let apiURL = apiURL else {
+            completion(AsyncResult.Failure(SessionError.unexpectedError(detail: "Missing rpc or apiURL")))
             return
         }
 
@@ -417,50 +406,48 @@ class Session : NSObject {
 
         log.info("releaseImageBlocks releasing blocks from \(fromBlock) to \(toBlock)");
 
-        let body = ReleaseImageBlocksRequest(sessionId: sessionID, fromBlock:fromBlock, toBlock: toBlock)
-        request.httpBody = try? JSONEncoder().encode(body)
-        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
-            
-            guard let data = data else {
-                // No response data
-                completion(AsyncResult.Failure(error))
-                return
-            }
-            
-            do {
-                let releaseImageBlocksResponse = try JSONDecoder().decode(ReleaseImageBlocksResponse.self, from: data)
-                if (!releaseImageBlocksResponse.results.success) {
-                    completion(AsyncResult.Failure(SessionError.releaseImageBlocksFailed(code:releaseImageBlocksResponse.results.code)))
-                    return
-                }
-                if let session = releaseImageBlocksResponse.results.session {
-                    self.updateSession(session)
-                }
+        let request = ReleaseImageBlocksRequest(sessionId: sessionID, fromBlock:fromBlock, toBlock: toBlock)
+        let requestBody = try? JSONEncoder().encode(request)
 
-                completion(AsyncResult.Success)
-            } catch {
-                completion(AsyncResult.Failure(error))
+        do {
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody) { (response) in
+                switch response {
+                case .Failure(let error):
+                    completion(.Failure(error))
+                case .Success(let data):
+                    do {
+                        let releaseImageBlocksResponse = try JSONDecoder().decode(ReleaseImageBlocksResponse.self, from: data)
+                        if (!releaseImageBlocksResponse.results.success) {
+                            completion(AsyncResult.Failure(SessionError.releaseImageBlocksFailed(code:releaseImageBlocksResponse.results.code)))
+                            return
+                        }
+                        if let session = releaseImageBlocksResponse.results.session {
+                            self.updateSession(session)
+                        }
+                        
+                        completion(.Success)
+                    } catch {
+                        completion(.Failure(error))
+                    }
+                }
             }
+        } catch {
+            completion(.Failure(error))
         }
-        
-        task.resume()
     }
 
     func closeSession(completion: @escaping (AsyncResult)->()) {
+        guard let rpc = rpc, let apiURL = apiURL else {
+            completion(.Failure(SessionError.unexpectedError(detail: "Missing rpc or apiURL")))
+            return
+        }
+
         if (stopping) {
             // Already sent the closeSession
             return
         }
         
         stopping = true
-        
-        var request:URLRequest
-        do {
-            request = try createURLRequest(method: "POST")
-        } catch {
-            completion(.Failure(error))
-            return
-        }
 
         guard let sessionID = sessionID else {
             completion(.Failure(SessionError.missingSessionID))
@@ -468,31 +455,33 @@ class Session : NSObject {
         }
 
         let body = CloseSessionRequest(sessionId: sessionID)
-        request.httpBody = try? JSONEncoder().encode(body)
-        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
-            guard let data = data else {
-                // No response data
-                completion(AsyncResult.Failure(nil))
-                return
-            }
-            
-            do {
-                let closeSessionResponse = try JSONDecoder().decode(CloseSessionResponse.self, from: data)
-                if (!closeSessionResponse.results.success) {
-                    completion(AsyncResult.Failure(SessionError.closeSessionFailed(code:closeSessionResponse.results.code)))
-                    return
+        let requestBody = try? JSONEncoder().encode(body)
+        do {
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, completion: { (response) in
+                switch response {
+                case .Failure(let error):
+                    completion(.Failure(error))
+                case .Success(let data):
+                    do {
+                        let closeSessionResponse = try JSONDecoder().decode(CloseSessionResponse.self, from: data)
+                        if (!closeSessionResponse.results.success) {
+                            completion(AsyncResult.Failure(SessionError.closeSessionFailed(code:closeSessionResponse.results.code)))
+                            return
+                        }
+                        
+                        if let session = closeSessionResponse.results.session {
+                            self.updateSession(session)
+                        }
+                        
+                        completion(AsyncResult.Success)
+                    } catch {
+                        completion(AsyncResult.Failure(error))
+                    }
                 }
-                
-                if let session = closeSessionResponse.results.session {
-                    self.updateSession(session)
-                }
-
-                completion(AsyncResult.Success)
-            } catch {
-                completion(AsyncResult.Failure(error))
-            }
+            })
+        } catch {
+            completion(.Failure(error))
         }
-        task.resume()
     }
     
     // sendTask takes a little more fiddling than usual because while we use Swift 4's
@@ -504,11 +493,8 @@ class Session : NSObject {
     // Then we can update that dictionary to include the task, and re-encode to JSON.
     
     func sendTask(_ task: [String:Any], completion: @escaping (AsyncResult)->()) {
-        var request:URLRequest
-        do {
-            request = try createURLRequest(method: "POST")
-        } catch {
-            completion(.Failure(error))
+        guard let rpc = rpc, let apiURL = apiURL else {
+            completion(.Failure(SessionError.unexpectedError(detail: "Missing rpc or apiURL")))
             return
         }
         
@@ -537,120 +523,109 @@ class Session : NSObject {
             completion(AsyncResult.Failure(SessionError.invalidJSON))
             return
         }
-
-        request.httpBody = mergedBody
         
-        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
-            guard let data = data else {
-                // No response data
-                completion(AsyncResult.Failure(SessionError.invalidResponse(detail: "No response data")))
-                return
-            }
-            
-            do {
-                let sendTaskResponse = try JSONDecoder().decode(SendTaskResponse.self, from: data)
-                if (!sendTaskResponse.results.success) {
-                    completion(AsyncResult.Failure(SessionError.closeSessionFailed(code:sendTaskResponse.results.code)))
+        do {
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: mergedBody, completion: { (response) in
+                switch response {
+                case .Failure(let error):
+                    completion(.Failure(error))
+                case .Success(let data):
+                    do {
+                        let sendTaskResponse = try JSONDecoder().decode(SendTaskResponse.self, from: data)
+                        if (!sendTaskResponse.results.success) {
+                            completion(AsyncResult.Failure(SessionError.closeSessionFailed(code:sendTaskResponse.results.code)))
+                        }
+                        
+                        if let session = sendTaskResponse.results.session {
+                            self.updateSession(session)
+                        }
+                        completion(AsyncResult.Success)
+                    } catch {
+                        completion(AsyncResult.Failure(error))
+                    }
                 }
-                
-                if let session = sendTaskResponse.results.session {
-                    self.updateSession(session)
-                }
-                completion(AsyncResult.Success)
-            } catch {
-                completion(AsyncResult.Failure(error))
-            }
+            })
+        } catch {
+            completion(.Failure(error))
         }
-        task.resume()
     }
     
     func startCapturing(completion: @escaping (AsyncResponse<StartCapturingResponse>)->()) {
-        var request:URLRequest
-        do {
-            request = try createURLRequest(method: "POST")
-        } catch {
-            completion(.Failure(error))
+        guard let rpc = rpc, let apiURL = apiURL else {
+            completion(.Failure(SessionError.unexpectedError(detail: "Missing rpc or apiURL")))
             return
         }
-        
+
         guard let sessionID = sessionID else {
             completion(.Failure(SessionError.missingSessionID))
             return
         }
         
-        request.httpBody = try? JSONEncoder().encode(StartCapturingRequest(sessionId: sessionID))
-
-        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
-            guard let data = data else {
-                // No response data
-                completion(.Failure(nil))
-                return
-            }
-            
-            do {
-                let startCapturingResponse = try JSONDecoder().decode(StartCapturingResponse.self, from: data)
-                if (!startCapturingResponse.results.success) {
-                    completion(AsyncResponse.Failure(SessionError.startCapturingFailed(response:startCapturingResponse)))
+        let requestBody = try? JSONEncoder().encode(StartCapturingRequest(sessionId: sessionID))
+        do {
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, completion: { (response) in
+                switch response {
+                case .Failure(let error):
+                    completion(.Failure(error))
+                case .Success(let data):
+                    do {
+                        let startCapturingResponse = try JSONDecoder().decode(StartCapturingResponse.self, from: data)
+                        if (!startCapturingResponse.results.success) {
+                            completion(AsyncResponse.Failure(SessionError.startCapturingFailed(response:startCapturingResponse)))
+                        }
+                        
+                        if let session = startCapturingResponse.results.session {
+                            self.updateSession(session);
+                        }
+                        
+                        self.captureStarted = true
+                        completion(.Success(startCapturingResponse))
+                    } catch {
+                        completion(.Failure(error))
+                    }
                 }
-                
-                if let session = startCapturingResponse.results.session {
-                    self.updateSession(session);
-                }
-                
-                self.captureStarted = true
-                completion(.Success(startCapturingResponse))
-            } catch {
-                completion(.Failure(error))
-            }
+            })
+        } catch {
+            completion(.Failure(error))
         }
-        task.resume()
     }
     
     func stopCapturing(completion: @escaping (AsyncResponse<StopCapturingResponse>)->()) {
-        var request:URLRequest
-        do {
-            request = try createURLRequest(method: "POST")
-        } catch {
-            completion(.Failure(error))
+        guard let rpc = rpc, let apiURL = apiURL else {
+            completion(.Failure(SessionError.unexpectedError(detail: "Missing rpc or apiURL")))
             return
         }
-        
+
         guard let sessionID = sessionID else {
             completion(.Failure(SessionError.missingSessionID))
             return
         }
-        
-        request.httpBody = try? JSONEncoder().encode(StopCapturingRequest(sessionId: sessionID))
-        
-        let task = self.urlSession.dataTask(with: request) { (data, response, error) in
-            guard let data = data else {
-                // No response data
-                completion(.Failure(nil))
-                return
-            }
-            
-            do {
-                let stopCapturingResponse = try JSONDecoder().decode(StopCapturingResponse.self, from: data)
-                if (!stopCapturingResponse.results.success) {
-                    completion(AsyncResponse.Failure(SessionError.stopCapturingFailed(response:stopCapturingResponse)))
-                }
-                
-                if let session = stopCapturingResponse.results.session {
-                    self.updateSession(session);
-                }
-                completion(.Success(stopCapturingResponse))
-            } catch {
-                completion(.Failure(error))
-            }
-        }
-        task.resume()
-    }
-}
 
-extension Session : URLSessionDelegate {
-    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        let trust = challenge.protectionSpace.serverTrust!
-        let credential = URLCredential(trust: trust)
-        completionHandler(.useCredential, credential)
+        
+        let requestBody = try? JSONEncoder().encode(StopCapturingRequest(sessionId: sessionID))
+        do {
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, completion: { (response) in
+                switch response {
+                case .Failure(let error):
+                    completion(.Failure(error))
+                case .Success(let data):
+                    do {
+                        let stopCapturingResponse = try JSONDecoder().decode(StopCapturingResponse.self, from: data)
+                        if (!stopCapturingResponse.results.success) {
+                            completion(AsyncResponse.Failure(SessionError.stopCapturingFailed(response:stopCapturingResponse)))
+                        }
+                        
+                        if let session = stopCapturingResponse.results.session {
+                            self.updateSession(session);
+                        }
+                        completion(.Success(stopCapturingResponse))
+                    } catch {
+                        completion(.Failure(error))
+                    }
+                }
+            })
+        } catch {
+            completion(.Failure(error))
+        }
     }
 }

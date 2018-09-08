@@ -98,15 +98,40 @@ class MainTableTableViewController: UITableViewController {
             return
         }
 
-        session = Session(scanner: scannerInfo)
-        
+        if scannerInfo.connectionType == ScannerInfo.ConnectionType.cloud.rawValue {
+            guard let cloudConnection = (UIApplication.shared.delegate as! AppDelegate).cloudConnection else {
+                log.error("No cloudConnection")
+                return
+            }
+            guard let scannerID = scannerInfo.cloudScannerID else {
+                log.error("No cloudScannerID")
+                return
+            }
+            let cloudSession = CloudSession(APIRoot: cloudConnection.apiURL, scannerID: scannerID, cloudConnection: cloudConnection)
+            cloudSession.createSession { (response) in
+                switch response {
+                case AsyncResponse.Success(let session):
+                        self.session = session
+                        self.sessionCreated()
+                case AsyncResponse.Failure(let error):
+                        self.reportError(error)
+                }
+            }
+        } else {
+            session = Session(url: scannerInfo.url)
+            sessionCreated()
+        }
+    }
+
+    // Session (cloud or local) has been created, set it up and open it
+    func sessionCreated() {
         imageReceiver = ImageReceiver()
         session?.delegate = imageReceiver
         
         session?.open { result in
             switch (result) {
             case .Success:
-                log.info("didTapStart openSession success")
+                log.info("openSession success")
                 self.sendTask()
             case .Failure(let error):
                 self.reportError(error)
