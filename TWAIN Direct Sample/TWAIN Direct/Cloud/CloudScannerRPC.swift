@@ -11,15 +11,55 @@ import Foundation
 struct CloudScannerRPC : ScannerRPC {
     var privetToken: String?
     
+    let cloudConnection: CloudConnection
+    let cloudEventBroker: CloudEventBroker
+    
+    init(cloudEventBroker: CloudEventBroker, cloudConnection: CloudConnection) {
+        self.cloudConnection = cloudConnection
+        self.cloudEventBroker = cloudEventBroker
+    }
+    
     mutating func setPrivetToken(_ privetToken: String) {
         self.privetToken = privetToken
     }
     
-    func scannerRequest(url: URL, method: String, requestBody: Data?, completion: @escaping (AsyncResponse<Data>) -> ()) throws {
-        log.info("TBD")
+    func scannerRequestWithURLResponse(url: URL, method: String, requestBody: Data?, commandId: String, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?) -> ()) throws {
+        var request = try LocalScannerRPC.createURLRequest(url: url, method: method, privetToken: privetToken ?? "")
+        
+        if (requestBody != nil) {
+            request.httpBody = requestBody
+            request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        }
+
+        request.setValue(cloudConnection.accessToken, forHTTPHeaderField: "Authorization")
+        
+        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+            if error != nil {
+                completion(.Failure(error), nil)
+                return
+            }
+            
+            guard let response = response as? HTTPURLResponse else {
+                completion(.Failure(SessionError.unexpectedError(detail: "Unexpected: Response was not HTTPURLResponse")), nil)
+                return
+            }
+            
+            if response.statusCode >= 400 {
+                completion(.Failure(SessionError.unexpectedError(detail: "HTTP status \(response.statusCode)")), nil)
+            }
+            
+            // Response will arrive through MQTT
+            self.cloudEventBroker.waitForResponse(commandId: commandId, completion: { (headers, data) in
+                completion(.Success(data), nil)
+            })
+        }
+        task.resume()
     }
     
-    func scannerRequestWithURLResponse(url: URL, method: String, requestBody: Data?, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?) -> ()) throws {
-        log.info("TBD")
+    func scannerRequest(url: URL, method: String, requestBody: Data?, commandId: String, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?) -> ()) throws {
+        try scannerRequestWithURLResponse(url: url, method: method, requestBody: requestBody, commandId: commandId) { (response, _) in
+            completion(response, nil)
+        }
     }
 }
+

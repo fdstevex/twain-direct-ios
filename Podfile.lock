@@ -1,0 +1,30 @@
+PODS:
+  - MQTTClient (0.15.2):
+    - MQTTClient/Core (= 0.15.2)
+  - MQTTClient/Core (0.15.2):
+    - MQTTClient/Manager
+    - MQTTClient/Min
+  - MQTTClient/Manager (0.15.2):
+    - MQTTClient/Min
+  - MQTTClient/Min (0.15.2)
+  - MQTTClient/Websocket (0.15.2):
+    - MQTTClient/Min
+    - SocketRocket
+  - SocketRocket (0.5.1)
+
+DEPENDENCIES:
+  - MQTTClient (~> 0.15.2)
+  - MQTTClient/Websocket (~> 0.15.2)
+
+SPEC REPOS:
+  https://github.com/cocoapods/specs.git:
+    - MQTTClient
+    - SocketRocket
+
+SPEC CHECKSUMS:
+  MQTTClient: 902c7bcac1501595f3d0b15178c7205b40331fb0
+  SocketRocket: d57c7159b83c3c6655745cd15302aa24b6bae531
+
+PODFILE CHECKSUM: 3692e4bf3168802a35ddec67b23076f8054a3732
+
+COCOAPODS: 1.5.3

@@ -15,7 +15,7 @@ class LocalScannerRPC : NSObject, ScannerRPC {
         self.privetToken = privetToken
     }
 
-    func scannerRequestWithURLResponse(url: URL, method: String, requestBody: Data?, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?) -> ()) throws {
+    func scannerRequestWithURLResponse(url: URL, method: String, requestBody: Data?, commandId: String, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?) -> ()) throws {
         var request = try LocalScannerRPC.createURLRequest(url: url, method: method, privetToken: privetToken ?? "")
         
         if (requestBody != nil) {
@@ -56,9 +56,9 @@ class LocalScannerRPC : NSObject, ScannerRPC {
         task.resume()
     }
 
-    func scannerRequest(url: URL, method: String, requestBody: Data?, completion: @escaping (AsyncResponse<Data>) -> ()) throws {
-        try scannerRequestWithURLResponse(url: url, method: method, requestBody: requestBody) { (response, urlResponse) in
-            completion(response)
+    func scannerRequest(url: URL, method: String, requestBody: Data?, commandId: String, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?) -> ()) throws {
+        try scannerRequestWithURLResponse(url: url, method: method, requestBody: requestBody, commandId: commandId) { (response, urlResponse) in
+            completion(response, urlResponse)
         }
     }
     

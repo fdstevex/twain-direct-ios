@@ -216,7 +216,7 @@ class BlockDownloader {
         let httpBody = try? JSONEncoder().encode(body)
         
         do {
-            try rpc.scannerRequestWithURLResponse(url: apiURL, method: "POST", requestBody: httpBody) { (response, urlResponse) in
+            try rpc.scannerRequestWithURLResponse(url: apiURL, method: "POST", requestBody: httpBody, commandId: body.commandId) { (response, urlResponse) in
                 switch (response) {
                 case .Failure(let error):
                     if let error = error {

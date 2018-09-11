@@ -38,15 +38,18 @@ class CloudSession {
     // Create the cloud session by establishing the MQTT session, and then using that to
     // create a regular TWAIN Direct Session
     func createSession(completion: @escaping (AsyncResponse<Session>)->()) {
+        log.verbose("CloudSession: CreateSession requesting event broker info")
         cloudConnection.getEventBrokerInfo { response in
             switch (response) {
             case AsyncResponse.Failure(let error):
                 completion(.Failure(error))
                 return
             case AsyncResponse.Success(let eventBrokerInfo):
+                log.verbose("CloudSession: Received event broker info, connecting event broker")
                 let cloudEventBroker = CloudEventBroker(accessToken:self.cloudConnection.accessToken, eventBrokerInfo:eventBrokerInfo)
                 self.cloudEventBroker = cloudEventBroker
                 self.cloudEventBroker?.connect {
+                    log.verbose("CloudSession: Event broker connected")
                     let url = self.cloudConnection.apiURL.appendingPathComponent("scanners/" + self.scannerID)
                     let session = Session(url: url, cloudEventBroker: cloudEventBroker, cloudConnection: self.cloudConnection)
                     completion(AsyncResponse.Success(session))

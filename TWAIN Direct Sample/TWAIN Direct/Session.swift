@@ -158,7 +158,7 @@ class Session : NSObject {
         self.url = url
         self.cloudEventBroker = cloudEventBroker
         self.cloudConnection = cloudConnection
-        self.rpc = CloudScannerRPC()
+        self.rpc = CloudScannerRPC(cloudEventBroker: cloudEventBroker, cloudConnection: cloudConnection)
     }
 
     func updateSession(_ session: SessionResponse) {
@@ -219,17 +219,18 @@ class Session : NSObject {
     
     // Get a Privet token, and open a session with the scanner
     func open(completion: @escaping (AsyncResult)->()) {
+        log.verbose("Session: Opening session (sending infoex request)")
         let requestURL = url.appendingPathComponent("privet/infoex")
 
         do {
-            try rpc?.scannerRequest(url: requestURL, method: "GET", requestBody: nil, completion: { (response) in
+            try rpc?.scannerRequest(url: requestURL, method: "GET", requestBody: nil, commandId: "infoex", completion: { (response, _) in
                 switch response {
                 case AsyncResponse.Failure(let error):
                     completion(AsyncResult.Failure(error))
                 case AsyncResponse.Success(let data):
                     do {
                         let infoExResponse = try JSONDecoder().decode(InfoExResponse.self, from: data)
-                        log.info("infoex response: \(infoExResponse)")
+                        log.verbose("Session: Received infoex response")
                         self.rpc?.setPrivetToken(infoExResponse.privetToken)
                         guard var apiPath = infoExResponse.api?.first else {
                             log.info("Expected api property in infoex response")
@@ -259,15 +260,18 @@ class Session : NSObject {
             return
         }
         
+        log.verbose("Session: Sending createSession")
+
         let createSessionRequest = CreateSessionRequest()
         let httpBody = try? JSONEncoder().encode(createSessionRequest)
         do {
-            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: httpBody) { (response) in
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: httpBody, commandId: createSessionRequest.commandId) { (response, _) in
                 switch response {
                 case .Failure(let error):
                     completion(.Failure(error))
                 case .Success(let data):
                     do {
+                        log.verbose("Session: Received createSession response")
                         let createSessionResponse = try JSONDecoder().decode(CreateSessionResponse.self, from: data)
                         if (!createSessionResponse.results.success) {
                             let error = SessionError.createSessionFailed(code:createSessionResponse.results.code)
@@ -325,7 +329,7 @@ class Session : NSObject {
         let requestBody = try? JSONEncoder().encode(body)
 
         do {
-            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody) { (response) in
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, commandId: body.commandId) { (response, _) in
                 switch response {
                 case .Failure(let error):
                     // Failure - retry up to retry count
@@ -410,7 +414,7 @@ class Session : NSObject {
         let requestBody = try? JSONEncoder().encode(request)
 
         do {
-            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody) { (response) in
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, commandId: request.commandId) { (response, _) in
                 switch response {
                 case .Failure(let error):
                     completion(.Failure(error))
@@ -457,7 +461,7 @@ class Session : NSObject {
         let body = CloseSessionRequest(sessionId: sessionID)
         let requestBody = try? JSONEncoder().encode(body)
         do {
-            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, completion: { (response) in
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, commandId: body.commandId, completion: { (response, _) in
                 switch response {
                 case .Failure(let error):
                     completion(.Failure(error))
@@ -525,7 +529,7 @@ class Session : NSObject {
         }
         
         do {
-            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: mergedBody, completion: { (response) in
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: mergedBody, commandId: body.commandId, completion: { (response, _) in
                 switch response {
                 case .Failure(let error):
                     completion(.Failure(error))
@@ -561,9 +565,10 @@ class Session : NSObject {
             return
         }
         
-        let requestBody = try? JSONEncoder().encode(StartCapturingRequest(sessionId: sessionID))
+        let request = StartCapturingRequest(sessionId: sessionID)
+        let requestBody = try? JSONEncoder().encode(request)
         do {
-            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, completion: { (response) in
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, commandId: request.commandId, completion: { (response, _) in
                 switch response {
                 case .Failure(let error):
                     completion(.Failure(error))
@@ -602,9 +607,10 @@ class Session : NSObject {
         }
 
         
-        let requestBody = try? JSONEncoder().encode(StopCapturingRequest(sessionId: sessionID))
+        let request = StopCapturingRequest(sessionId: sessionID)
+        let requestBody = try? JSONEncoder().encode(request)
         do {
-            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, completion: { (response) in
+            try rpc.scannerRequest(url: apiURL, method: "POST", requestBody: requestBody, commandId: request.commandId, completion: { (response, _) in
                 switch response {
                 case .Failure(let error):
                     completion(.Failure(error))

@@ -117,7 +117,7 @@ extension ServiceDiscoverer : NetServiceDelegate {
         if let scannerInfo = scannerInfoFrom(service:sender) {
             let key = "\(scannerInfo.url.absoluteString)\(String(describing:scannerInfo.name))"
             
-            log.info("Discovered \(scannerInfo.name ?? "") at \(scannerInfo.url)")
+            log.info("Discovered scannerInfo.name at \(scannerInfo.url)")
             discoveredScanners[key] = scannerInfo
             delegate?.discoverer(self, didDiscover: Array(discoveredScanners.values))
         }
