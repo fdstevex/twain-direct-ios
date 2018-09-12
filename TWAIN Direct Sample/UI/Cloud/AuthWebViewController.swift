@@ -51,7 +51,7 @@ extension AuthWebViewController : WKNavigationDelegate {
         if let vc = storyboard?.instantiateViewController(withIdentifier: "scannerPicker") as? ScannerPickerTableViewController {
             if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
                 appDelegate.cloudConnection = CloudConnection(apiURL: apiURL, accessToken: accessToken, refreshToken: refreshToken)
-                
+                appDelegate.cloudConnection?.makeSelected()
                 vc.cloudConnection = appDelegate.cloudConnection
                 
                 stack.removeLast()

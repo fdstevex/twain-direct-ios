@@ -82,6 +82,14 @@ class MainTableTableViewController: UITableViewController {
         }
     }
     
+    // Create the session's CloudConnection from Settings
+    func prepareCloudConnection() {
+        if let cloudConnection = CloudConnection.restoreSelected() {
+            let appDelegate = UIApplication.shared.delegate as! AppDelegate
+            appDelegate.cloudConnection = cloudConnection
+        }
+    }
+
     @IBAction func didTapStart(_ sender: Any) {
         guard let scannerJSON = UserDefaults.standard.string(forKey: "scanner") else {
             return
@@ -99,6 +107,8 @@ class MainTableTableViewController: UITableViewController {
         }
 
         if scannerInfo.connectionType == ScannerInfo.ConnectionType.cloud.rawValue {
+            prepareCloudConnection()
+            
             guard let cloudConnection = (UIApplication.shared.delegate as! AppDelegate).cloudConnection else {
                 log.error("No cloudConnection")
                 return
@@ -309,6 +319,11 @@ class MainTableTableViewController: UITableViewController {
         do {
             let scannerInfo = try JSONDecoder().decode(ScannerInfo.self, from:scannerJSON.data(using: .utf8)!)
             
+            if scannerInfo.connectionType == ScannerInfo.ConnectionType.cloud.rawValue {
+                //
+                return true
+            }
+            
             if (!scannersDiscovered.contains { $0.name == scannerInfo.name }) {
                 // Scanner is not in the mDNS discovery list
                 return false
@@ -344,8 +359,11 @@ class MainTableTableViewController: UITableViewController {
                 let scannerInfo = try JSONDecoder().decode(ScannerInfo.self, from: (scannerJSON.data(using: .utf8))!)
                 
                 label = scannerInfo.name
-                if (!scannersDiscovered.contains { $0.name == scannerInfo.name }) {
-                    label = label + " (Offline)"
+
+                if scannerInfo.connectionType == ScannerInfo.ConnectionType.local.rawValue {
+                    if (!scannersDiscovered.contains { $0.name == scannerInfo.name }) {
+                        label = label + " (Offline)"
+                    }
                 }
             } catch {
                 log.error("Error deserializing scannerInfo: \(String(describing:error))")

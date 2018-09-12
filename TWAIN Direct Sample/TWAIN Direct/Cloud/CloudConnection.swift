@@ -143,4 +143,33 @@ class CloudConnection {
             completionHandler(AsyncResponse.Success(data))
         }
     }
+    
+    enum SettingsKeys: String {
+        case apiURL = "cloudScannerAPIURL"
+        case accessToken = "cloudAccessToken"
+        case refreshToken = "cloudRefreshToken"
+    }
+    
+    func makeSelected() {
+        let defaults = UserDefaults.standard
+        defaults.set(apiURL, forKey: SettingsKeys.apiURL.rawValue)
+        defaults.set(accessToken, forKey: SettingsKeys.accessToken.rawValue)
+        defaults.set(refreshToken, forKey: SettingsKeys.refreshToken.rawValue)
+    }
+    
+    static func restoreSelected() -> CloudConnection? {
+        guard let scannerAPIURL = UserDefaults.standard.url(forKey: SettingsKeys.apiURL.rawValue) else {
+            return nil
+        }
+        
+        guard let accessToken = UserDefaults.standard.string(forKey: SettingsKeys.accessToken.rawValue) else {
+            return nil
+        }
+        
+        guard let refreshToken = UserDefaults.standard.string(forKey: SettingsKeys.refreshToken.rawValue) else {
+            return nil
+        }
+        
+        return CloudConnection(apiURL: scannerAPIURL, accessToken: accessToken, refreshToken: refreshToken)
+    }
 }
