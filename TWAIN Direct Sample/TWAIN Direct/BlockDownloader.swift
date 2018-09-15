@@ -165,6 +165,15 @@ class BlockDownloader {
         }
     }
     
+    private func downloadError(_ error: Error, blockNum: Int) {
+        lock.lock()
+        blockStatus[blockNum] = .readyToDownload
+        lock.unlock()
+        if let session = session {
+            session.delegate?.session(session, didEncounterError: error)
+        }
+    }
+
     // This function starts a download if we're not already at the configured maximum number
     // of concurrent downloads. It takes the next block that's in the readyToDownload state,
     // and starts downloading it.
@@ -204,102 +213,33 @@ class BlockDownloader {
             return
         }
         
-        func downloadError(_ error: Error) {
-            lock.lock()
-            blockStatus[blockNum] = .readyToDownload
-            lock.unlock()
-            session.delegate?.session(session, didEncounterError: error)
-        }
-        
         log.info("Starting download of block \(blockNum)")
         let body = ReadImageBlockRequest(sessionId: sessionID, imageBlockNum: blockNum)
         let httpBody = try? JSONEncoder().encode(body)
         
         do {
             try rpc.scannerRequestWithURLResponse(url: url, method: "POST", requestBody: httpBody, commandId: body.commandId) { (response, urlResponse) in
-                switch (response) {
-                case .Failure(let error):
-                    if let error = error {
-                        downloadError(error)
-                    } else {
-                        downloadError(SessionError.unexpectedError(detail: "downloading block"))
-                    }
-                case .Success(let data):
-                    // We have the HTTP response body, containing the MIME multipart/mixed body with
-                    // the metadata and the binary payload. Use MultipartExtractor to parse and separate.
-                    var json: Data
-                    var blockData: Data
-                    
-                    guard let urlResponse = urlResponse else {
-                        downloadError(SessionError.unexpectedError(detail: "urlResponse not available"))
-                        return
-                    }
-                    
-                    do {
-                        let r = try MultipartExtractor.extract(from: urlResponse, data: data)
-                        json = r.json
-                        blockData = r.pdf
-                    } catch {
-                        downloadError(error)
-                        return
-                    }
-                    
-                    do {
-                        let result = try JSONDecoder().decode(ReadImageBlockResponse.self, from: json)
-                        if (!result.results.success) {
-                            log.error("Failure downloading block: \(result)")
-                            downloadError(BlockDownloaderError.downloadFailed)
-                            return
+                do {
+                    switch (response) {
+                    case .Failure(let error):
+                        if let error = error {
+                            self.downloadError(error, blockNum: blockNum)
+                        } else {
+                            self.downloadError(SessionError.unexpectedError(detail: "downloading block"), blockNum: blockNum)
                         }
-                        
-                        let tempPDF = self.tempFolder.appendingPathComponent(UUID().uuidString).appendingPathExtension("pdf")
-                        log.info("Writing PDF for block \(blockNum) to \(tempPDF)")
-                        try? blockData.write(to: tempPDF)
-                        
-                        self.lock.lock()
-                        
-                        // There may not be more parts, but this signals to deliverCompletedBlocks that this
-                        // part is all here.
-                        self.blockStatus[blockNum] = .waitingForMoreParts
-                        
-                        // Release
-                        session.releaseImageBlocks(from: blockNum, to: blockNum, completion: { (result) in
-                            switch (result) {
-                            case .Success:
-                                log.info("Released image block \(blockNum)")
-                                break;
-                            case .Failure(let error):
-                                log.error("Error releasing block \(blockNum): \(String(describing:error))")
-                                if let error = error {
-                                    downloadError(error);
-                                } else {
-                                    downloadError(BlockDownloaderError.releaseImageBlocksFailed);
-                                }
-                            }
-                        })
-                        
-                        self.downloadedBlocks[blockNum] = DownloadedBlockInfo(blockNum: blockNum, metadata: json, response: result, pdfPath: tempPDF)
-                        
-                        self.activeDownloadCount = self.activeDownloadCount - 1
-                        
-                        self.lock.unlock()
-                        
-                        self.deliverCompletedBlocks()
-                        
-                        // Kick off the next one
-                        self.download()
-                    } catch {
-                        log.error("Error decoding response: \(error)")
-                        self.lock.lock()
-                        self.activeDownloadCount = self.activeDownloadCount - 1
-                        self.blockStatus[blockNum] = .readyToDownload
-                        self.lock.unlock()
-                        return
+                    case .Success(let data):
+                        if let _ = session.cloudConnection {
+                            try self.processCloudResponse(blockNum: blockNum, data: data)
+                        } else {
+                            try self.processLocalResponse(blockNum: blockNum, data: data, urlResponse: urlResponse!)
+                        }
                     }
+                } catch {
+                    self.downloadError(error, blockNum: blockNum)
                 }
             }
         } catch {
-            downloadError(error)
+            downloadError(error, blockNum: blockNum)
         }
 
         // Mark this block as downloading
@@ -307,6 +247,84 @@ class BlockDownloader {
         activeDownloadCount = activeDownloadCount + 1
     }
 
+    // The cloud response from a readImageBlocks command provides an imageBlockId, which
+    // is used to download the file from a new URL (the block is temporarily hosted somewhere
+    // like S3 rather than being streamed from the scanner). The block data is currently
+    // base64 encoded and quoted.
+    private func processCloudResponse(blockNum: Int, data: Data) throws {
+        struct BlockResults: Decodable {
+            let imageBlockId: String
+        }
+        struct BlockResponse: Decodable {
+            let results: BlockResults
+        }
+        
+        guard let response = try? JSONDecoder().decode(BlockResponse.self, from: data) else {
+            downloadError(SessionError.blockDownloadFailed, blockNum: blockNum)
+            return
+        }
+        
+        log.verbose("Block num \(blockNum) has id \(response.results.imageBlockId)")
+    }
+    
+    private func processLocalResponse(blockNum: Int, data: Data, urlResponse: HTTPURLResponse) throws {
+        // We have the HTTP response body, containing the MIME multipart/mixed body with
+        // the metadata and the binary payload. Use MultipartExtractor to parse and separate.
+        var json: Data
+        var blockData: Data
+        
+        let r = try MultipartExtractor.extract(from: urlResponse, data: data)
+        json = r.json
+        blockData = r.pdf
+        
+        let result = try JSONDecoder().decode(ReadImageBlockResponse.self, from: json)
+        if (!result.results.success) {
+            log.error("Failure downloading block: \(result)")
+            throw BlockDownloaderError.downloadFailed
+        }
+        
+        processBlockData(blockData, blockNum:blockNum, metadata: json, readImageBlockResponse: result)
+    }
+    
+    private func processBlockData(_ blockData: Data, blockNum: Int, metadata: Data, readImageBlockResponse: ReadImageBlockResponse) {
+        let tempPDF = self.tempFolder.appendingPathComponent(UUID().uuidString).appendingPathExtension("pdf")
+        log.info("Writing PDF for block \(blockNum) to \(tempPDF)")
+        try? blockData.write(to: tempPDF)
+        
+        self.lock.lock()
+        
+        // There may not be more parts, but this signals to deliverCompletedBlocks that this
+        // part is all here.
+        self.blockStatus[blockNum] = .waitingForMoreParts
+        
+        // Release
+        session?.releaseImageBlocks(from: blockNum, to: blockNum, completion: { (result) in
+            switch (result) {
+            case .Success:
+                log.info("Released image block \(blockNum)")
+                break;
+            case .Failure(let error):
+                log.error("Error releasing block \(blockNum): \(String(describing:error))")
+                if let error = error {
+                    self.downloadError(error, blockNum: blockNum)
+                } else {
+                    self.downloadError(BlockDownloaderError.releaseImageBlocksFailed, blockNum: blockNum)
+                }
+            }
+        })
+        
+        self.downloadedBlocks[blockNum] = DownloadedBlockInfo(blockNum: blockNum, metadata: metadata, response: readImageBlockResponse, pdfPath: tempPDF)
+        
+        self.activeDownloadCount = self.activeDownloadCount - 1
+        
+        self.lock.unlock()
+        
+        self.deliverCompletedBlocks()
+        
+        // Kick off the next one
+        self.download()
+    }
+    
     // Check for images that we hae all the required parts of to delier
     // a file to the app. Assemble, if required, deliver, and delete the parts.
     func deliverCompletedBlocks() {

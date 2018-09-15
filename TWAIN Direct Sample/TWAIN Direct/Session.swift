@@ -18,6 +18,7 @@ enum SessionError : Error {
     case closeSessionFailed(code: String?)
     case missingSessionID
     case invalidJSON
+    case blockDownloadFailed
     case startCapturingFailed(response: StartCapturingResponse)
     case stopCapturingFailed(response: StopCapturingResponse)
     case delegateNotSet
@@ -69,6 +70,8 @@ extension SessionError: LocalizedError {
                 }
             case .delegateNotSet:
                 return "delegate not set"
+            case .blockDownloadFailed:
+                return "block download failed"
             case .invalidState:
                 return "invalid state"
             case .unexpectedError(let detail):
