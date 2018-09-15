@@ -61,7 +61,7 @@ extension TaskDownloaderWebViewController : WKNavigationDelegate {
                     let task = session.dataTask(with: url) { data, response, error -> Void in
                         if let data = data {
                             // Ensure it parses
-                            if let data = try? JSONSerialization.jsonObject(with: data, options: []) {
+                            if let _ = try? JSONSerialization.jsonObject(with: data, options: []) {
                                 // We're good .. save it
                                 UserDefaults.standard.setValue(data, forKey: "task")
                                 UserDefaults.standard.setValue(fileName, forKey: "taskName")

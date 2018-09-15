@@ -211,8 +211,12 @@ class MainTableTableViewController: UITableViewController {
     
     // Called from didTapStart when the session open succeeds
     func sendTask() {
-        let data = "{\"actions\": [ { \"action\": \"configure\" } ] }".data(using: .utf8)
-        let taskObj = try? JSONSerialization.jsonObject(with: data!, options: []) as! [String:Any]
+        guard let taskData = UserDefaults.standard.data(forKey: "task") else {
+            log.error("No task data available")
+            return
+        }
+        
+        let taskObj = try? JSONSerialization.jsonObject(with: taskData, options: []) as! [String:Any]
         
         session?.sendTask(taskObj!) { result in
             switch (result) {
