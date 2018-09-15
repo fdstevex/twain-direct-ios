@@ -8,6 +8,7 @@
 
 import Foundation
 
+
 enum BlockDownloaderError : Error {
     case noResponseBody
     case unexpectedMimeType
@@ -55,6 +56,7 @@ struct ReadImageBlockResponse : Codable {
         var success: Bool
         var session: SessionResponse
         var metadata: ImageMetadata
+        var imageBlockId: String?
     }
     
     struct SessionEvent : Codable {
@@ -99,7 +101,7 @@ struct DownloadedBlockInfo {
     // Block number
     let blockNum: Int
     
-    // JSON response as received
+    // Block metadata
     let metadata: Data
     
     // Decoded JSON response
@@ -229,7 +231,7 @@ class BlockDownloader {
                         }
                     case .Success(let data):
                         if let _ = session.cloudConnection {
-                            try self.processCloudResponse(blockNum: blockNum, data: data)
+                            try self.processCloudResponse(blockNum: blockNum, readImageBlockJSON: data)
                         } else {
                             try self.processLocalResponse(blockNum: blockNum, data: data, urlResponse: urlResponse!)
                         }
@@ -251,20 +253,49 @@ class BlockDownloader {
     // is used to download the file from a new URL (the block is temporarily hosted somewhere
     // like S3 rather than being streamed from the scanner). The block data is currently
     // base64 encoded and quoted.
-    private func processCloudResponse(blockNum: Int, data: Data) throws {
-        struct BlockResults: Decodable {
-            let imageBlockId: String
-        }
-        struct BlockResponse: Decodable {
-            let results: BlockResults
-        }
-        
-        guard let response = try? JSONDecoder().decode(BlockResponse.self, from: data) else {
-            downloadError(SessionError.blockDownloadFailed, blockNum: blockNum)
+    private func processCloudResponse(blockNum: Int, readImageBlockJSON: Data) throws {
+        guard let session = session else {
+            log.error("Session somehow nil in processCloudResponse")
             return
         }
         
-        log.verbose("Block num \(blockNum) has id \(response.results.imageBlockId)")
+        let readImageBlockResponse = try JSONDecoder().decode(ReadImageBlockResponse.self, from: readImageBlockJSON)
+        guard let blockId = readImageBlockResponse.results.imageBlockId else {
+            downloadError(SessionError.unexpectedError(detail: "readImageBlocks did not supply imageBlockId"), blockNum: blockNum)
+            return
+        }
+        
+        let blockURL = session.url.appendingPathComponent("blocks/\(blockId)")
+        log.info("Requesting block at URL \(blockURL)")
+        
+        guard let accessToken = session.cloudEventBroker?.accessToken else {
+            downloadError(SessionError.unexpectedError(detail: "No accessToken"), blockNum: blockNum)
+            return
+        }
+        
+        var urlRequest = URLRequest(url: blockURL)
+        urlRequest.addValue(accessToken, forHTTPHeaderField: "Authorization")
+        let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
+            if let error = error {
+                self.downloadError(error, blockNum: blockNum)
+                return
+            }
+            guard let data = data else {
+                log.error("Block download returned no data")
+                self.downloadError(SessionError.blockDownloadFailed, blockNum: blockNum)
+                return
+            }
+
+            guard let decoded = Data(base64Encoded: data, options: [.ignoreUnknownCharacters]) else {
+                log.error("Base64 decode failed")
+                self.downloadError(SessionError.blockDownloadFailed, blockNum: blockNum)
+                return
+            }
+            
+            self.processBlockData(decoded, blockNum: blockNum, metadata: readImageBlockJSON, readImageBlockResponse: readImageBlockResponse)
+        }
+        
+        task.resume()
     }
     
     private func processLocalResponse(blockNum: Int, data: Data, urlResponse: HTTPURLResponse) throws {
