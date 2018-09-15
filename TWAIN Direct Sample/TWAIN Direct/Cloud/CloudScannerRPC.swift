@@ -24,6 +24,11 @@ struct CloudScannerRPC : ScannerRPC {
     }
     
     func scannerRequestWithURLResponse(url: URL, method: String, requestBody: Data?, commandId: String, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?) -> ()) throws {
+        log.info("Submitting cloud URL request \(url)")
+        if let requestBody = requestBody, let bodyStr = String(data: requestBody, encoding: .utf8) {
+            log.verbose("Body \(bodyStr)")
+        }
+        
         var request = try LocalScannerRPC.createURLRequest(url: url, method: method, privetToken: privetToken ?? "")
         
         if (requestBody != nil) {
@@ -50,6 +55,10 @@ struct CloudScannerRPC : ScannerRPC {
             
             // Response will arrive through MQTT
             self.cloudEventBroker.waitForResponse(commandId: commandId, completion: { (headers, data) in
+                log.verbose("Received response")
+                if let bodyData = String(data: data, encoding: .utf8) {
+                    log.info("Body: \(bodyData)")
+                }
                 completion(.Success(data), nil)
             })
         }

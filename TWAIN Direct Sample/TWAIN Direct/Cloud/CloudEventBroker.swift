@@ -88,7 +88,9 @@ class CloudEventBroker {
             
             // Locate a listener
             // infoex is the only command sent without a commandId
-            if let listener = listeners[messageBody.commandId ?? "infoex"] {
+            let key = messageBody.commandId ?? "infoex"
+            if let listener = listeners[key] {
+                listeners.removeValue(forKey: key)
                 listener(message.headers, messageData)
             }
         } catch {

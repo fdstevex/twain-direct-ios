@@ -174,10 +174,11 @@ class BlockDownloader {
         
         guard let session = session,
             let sessionID = session.sessionID,
-            let apiURL = session.apiURL else {
+            let url = session.apiURL else {
             // No session, can't download
             return
         }
+        
         
         if (activeDownloadCount > windowSize) {
             // Can't start any more downloads right now
@@ -203,7 +204,6 @@ class BlockDownloader {
             return
         }
         
-        
         func downloadError(_ error: Error) {
             lock.lock()
             blockStatus[blockNum] = .readyToDownload
@@ -216,7 +216,7 @@ class BlockDownloader {
         let httpBody = try? JSONEncoder().encode(body)
         
         do {
-            try rpc.scannerRequestWithURLResponse(url: apiURL, method: "POST", requestBody: httpBody, commandId: body.commandId) { (response, urlResponse) in
+            try rpc.scannerRequestWithURLResponse(url: url, method: "POST", requestBody: httpBody, commandId: body.commandId) { (response, urlResponse) in
                 switch (response) {
                 case .Failure(let error):
                     if let error = error {
@@ -228,7 +228,7 @@ class BlockDownloader {
                     // We have the HTTP response body, containing the MIME multipart/mixed body with
                     // the metadata and the binary payload. Use MultipartExtractor to parse and separate.
                     var json: Data
-                    var pdf: Data
+                    var blockData: Data
                     
                     guard let urlResponse = urlResponse else {
                         downloadError(SessionError.unexpectedError(detail: "urlResponse not available"))
@@ -238,7 +238,7 @@ class BlockDownloader {
                     do {
                         let r = try MultipartExtractor.extract(from: urlResponse, data: data)
                         json = r.json
-                        pdf = r.pdf
+                        blockData = r.pdf
                     } catch {
                         downloadError(error)
                         return
@@ -254,7 +254,7 @@ class BlockDownloader {
                         
                         let tempPDF = self.tempFolder.appendingPathComponent(UUID().uuidString).appendingPathExtension("pdf")
                         log.info("Writing PDF for block \(blockNum) to \(tempPDF)")
-                        try? pdf.write(to: tempPDF)
+                        try? blockData.write(to: tempPDF)
                         
                         self.lock.lock()
                         

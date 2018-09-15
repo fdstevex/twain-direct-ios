@@ -368,9 +368,9 @@ class Session : NSObject {
                                 return
                             }
                             
-                            self.updateSession(event.session)
-                            
                             log.info("Received event: \(event)")
+
+                            self.updateSession(event.session)
                             
                             if event.session.doneCapturing ?? false &&
                                 event.session.imageBlocksDrained ?? false {
