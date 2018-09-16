@@ -62,6 +62,10 @@ class LocalScannerRPC : NSObject, ScannerRPC {
         }
     }
     
+    func close() {
+        // Nothing to do here
+    }
+    
     static func createURLRequest(url: URL, method: String, privetToken: String) throws -> URLRequest {
         var request = URLRequest(url:url)
         request.setValue(privetToken, forHTTPHeaderField: "X-Privet-Token")

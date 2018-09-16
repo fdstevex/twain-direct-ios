@@ -42,6 +42,7 @@
 		84C4B5221F8FC62100456217 /* MultipartExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C4B5211F8FC62100456217 /* MultipartExtractor.swift */; };
 		84C96AA31F75818600F2038D /* MainTableTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C96AA21F75818600F2038D /* MainTableTableViewController.swift */; };
 		84C96AA51F758F7200F2038D /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C96AA41F758F7200F2038D /* Session.swift */; };
+		84FD55AF214E623400B048CD /* CloudRequestDispatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FD55AE214E623400B048CD /* CloudRequestDispatcher.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -87,6 +88,7 @@
 		84C4B5211F8FC62100456217 /* MultipartExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultipartExtractor.swift; sourceTree = "<group>"; };
 		84C96AA21F75818600F2038D /* MainTableTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTableTableViewController.swift; sourceTree = "<group>"; };
 		84C96AA41F758F7200F2038D /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
+		84FD55AE214E623400B048CD /* CloudRequestDispatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudRequestDispatcher.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,6 +139,7 @@
 				844C6C15214135EB00A5AD92 /* CloudEventBroker.swift */,
 				844C6C1721413B7E00A5AD92 /* CloudSession.swift */,
 				841AEED82142941100B26340 /* CloudScannerRPC.swift */,
+				84FD55AE214E623400B048CD /* CloudRequestDispatcher.swift */,
 			);
 			path = Cloud;
 			sourceTree = "<group>";
@@ -361,6 +364,7 @@
 			files = (
 				84A1C6CB1F74420F0062C442 /* SwiftyBeaver.swift in Sources */,
 				84A1C6CD1F744E2F0062C442 /* ScannerInfo.swift in Sources */,
+				84FD55AF214E623400B048CD /* CloudRequestDispatcher.swift in Sources */,
 				84189C2A213D42A00075EAF2 /* CloudConnection.swift in Sources */,
 				84A1C6C51F74420F0062C442 /* AES256CBC.swift in Sources */,
 				84A1C6C91F74420F0062C442 /* FileDestination.swift in Sources */,

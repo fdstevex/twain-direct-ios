@@ -274,8 +274,8 @@ class BlockDownloader {
         }
         
         var urlRequest = URLRequest(url: blockURL)
-        urlRequest.addValue(accessToken, forHTTPHeaderField: "Authorization")
-        let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
+        urlRequest.setValue(accessToken, forHTTPHeaderField: "Authorization")
+        session.cloudConnection?.dispatcher.dispatch(urlRequest) { (data, response, error) in
             if let error = error {
                 self.downloadError(error, blockNum: blockNum)
                 return
@@ -294,8 +294,6 @@ class BlockDownloader {
             
             self.processBlockData(decoded, blockNum: blockNum, metadata: readImageBlockJSON, readImageBlockResponse: readImageBlockResponse)
         }
-        
-        task.resume()
     }
     
     private func processLocalResponse(blockNum: Int, data: Data, urlResponse: HTTPURLResponse) throws {

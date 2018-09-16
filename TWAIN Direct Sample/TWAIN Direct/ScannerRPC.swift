@@ -26,4 +26,6 @@ protocol ScannerRPC {
     func scannerRequest(url: URL, method: String, requestBody: Data?, commandId: String, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?)->()) throws
 
     func scannerRequestWithURLResponse(url: URL, method: String, requestBody: Data?, commandId: String, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?)->()) throws
+    
+    func close()
 }

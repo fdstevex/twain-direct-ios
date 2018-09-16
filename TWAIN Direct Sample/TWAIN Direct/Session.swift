@@ -26,6 +26,8 @@ enum SessionError : Error {
     case unexpectedError(detail: String)
     case invalidResponse(detail: String)
     case rpcFailure(statusCode: Int)
+    case accessTokenRefreshFailed
+    case httpError(statusCode: Int)
 }
 
 // These aren't actually localizable (not returned through NSLocalizedString) because these are states the app
@@ -80,6 +82,10 @@ extension SessionError: LocalizedError {
                 return "invalid response \(detail)"
             case .rpcFailure(let statusCode):
                 return "RPC failure, http statusCode \(statusCode)"
+            case .accessTokenRefreshFailed:
+                return "OAuth2 access token refresh failed"
+            case .httpError(let statusCode):
+                return "HTTP error, statusCode \(statusCode)"
             }
         }
     }
@@ -174,6 +180,11 @@ class Session : NSObject {
 
         if (session.state != oldState) {
             delegate?.session(self, didChangeState: session.state)
+            
+            if (session.state == .noSession) {
+                self.rpc?.close()
+                self.rpc = nil
+            }
         }
         
         // If the session just transitioned to closed, and we're stopping, make sure we

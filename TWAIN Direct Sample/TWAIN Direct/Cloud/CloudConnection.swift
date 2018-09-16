@@ -27,9 +27,8 @@ class CloudConnection {
     // OAuth2 Refresh Token
     var refreshToken: String?
 
-    // Flag that indicates a token refresh is in flight
-    var refreshingToken = false
-
+    lazy var dispatcher = CloudRequestDispatcher(cloudConnection: self)
+    
     init(apiURL: URL, accessToken: String, refreshToken: String?) {
         self.apiURL = apiURL
         self.accessToken = accessToken
@@ -76,19 +75,20 @@ class CloudConnection {
             }
         }
     }
-    
+
     func getData(endpoint: String, completionHandler: @escaping (AsyncResponse<Data>)->()) {
         let url = apiURL.appendingPathComponent(endpoint)
         var request = URLRequest(url: url)
-        request.addValue(accessToken, forHTTPHeaderField: "Authorization")
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+        request.setValue(accessToken, forHTTPHeaderField: "Authorization")
+        
+        dispatcher.dispatch(request) { data, response, error in
             guard let response = response as? HTTPURLResponse else {
                 completionHandler(AsyncResponse.Failure(error))
                 return
             }
             guard response.statusCode == 200 else {
                 log.error("Response from \(endpoint) endpoint: \(response)")
-                completionHandler(AsyncResponse.Failure(nil))
+                completionHandler(AsyncResponse.Failure(SessionError.httpError(statusCode:response.statusCode)))
                 return
             }
             
@@ -100,7 +100,6 @@ class CloudConnection {
             
             completionHandler(AsyncResponse.Success(data))
         }
-        task.resume()
     }
     
     func getEventBrokerInfo(_ completionHandler: @escaping (AsyncResponse<CloudEventBrokerInfo>)->()) {

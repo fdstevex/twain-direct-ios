@@ -38,7 +38,7 @@ struct CloudScannerRPC : ScannerRPC {
 
         request.setValue(cloudConnection.accessToken, forHTTPHeaderField: "Authorization")
         
-        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+        cloudConnection.dispatcher.dispatch(request) { (data, response, error) in
             if error != nil {
                 completion(.Failure(error), nil)
                 return
@@ -62,7 +62,10 @@ struct CloudScannerRPC : ScannerRPC {
                 completion(.Success(data), nil)
             })
         }
-        task.resume()
+    }
+
+    func close() {
+        cloudEventBroker.session.closeAndWait(1.0)
     }
     
     func scannerRequest(url: URL, method: String, requestBody: Data?, commandId: String, completion: @escaping (AsyncResponse<Data>, HTTPURLResponse?) -> ()) throws {
