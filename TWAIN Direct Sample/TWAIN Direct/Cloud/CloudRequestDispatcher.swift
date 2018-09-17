@@ -16,12 +16,12 @@ import Foundation
  kick off the token refresh.
  
  During the token refresh, other request being dispatched must wait, because
- we know thy will fail with the invalid accessToken. Also, because the
+ we know they will fail with the invalid accessToken. Also, because the
  refreshToken can only be used once, other requests that were already 'in flight'
  that return a 401 must wait for the token refresh to complete, and then be
  retried with the new request.
  
- This class manages this entire process.
+ This class manages that process.
  */
 
 class CloudRequestDispatcher {
@@ -36,6 +36,7 @@ class CloudRequestDispatcher {
         queue.maxConcurrentOperationCount = 1
     }
     
+    // Dispatch an URLRequest, including handling 401 errors and token refresh
     func dispatch(_ request: URLRequest, completion: @escaping (Data?, URLResponse?, Error?) -> ()) {
         queue.addOperation {
             if !self.waitingRequests.isEmpty {
@@ -58,7 +59,9 @@ class CloudRequestDispatcher {
         task.resume()
     }
     
-    func attemptTokenRefresh(_ request: URLRequest, completion: @escaping (Data?, URLResponse?, Error?) -> ()) {
+    // Add this request to the list of requests waiting for a token refresh.
+    // If this is the first one, then submit the refresh request.
+    private func attemptTokenRefresh(_ request: URLRequest, completion: @escaping (Data?, URLResponse?, Error?) -> ()) {
         // Create the queue and start the refresh, or just add to the queue if it exists
         queue.addOperation {
             self.waitingRequests.append((request, completion))
@@ -69,7 +72,8 @@ class CloudRequestDispatcher {
         }
     }
 
-    func failAll(_ error: Error) {
+    // Fail all outstanding requests, for example if the token refresh failed.
+    private func failAll(_ error: Error) {
         queue.addOperation {
             let requests = self.waitingRequests
             self.waitingRequests.removeAll()
@@ -81,7 +85,8 @@ class CloudRequestDispatcher {
         }
     }
     
-    func submitTokenRefreshRequest() {
+    // Send the token refresh request to the server.
+    private func submitTokenRefreshRequest() {
         guard let refreshToken = self.cloudConnection.refreshToken else {
             // Refresh token should have been set long before we get here
             log.error("No refresh token")

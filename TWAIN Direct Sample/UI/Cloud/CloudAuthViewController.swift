@@ -8,15 +8,15 @@
 
 import UIKit
 
+/**
+ This view controller asks the user to enter the URL for their
+ cloud service, and which of the specific services this example
+ app supports they'd like to authenticate with (Google or Facebook).
+ */
+
 class CloudAuthViewController: UIViewController {
 
     @IBOutlet weak var apiField: UITextField!
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        // Do any additional setup after loading the view.
-    }
     
     func authenticate(_ service: String) {
         guard let urlString = apiField.text else {

@@ -9,6 +9,15 @@
 import UIKit
 import WebKit
 
+/**
+ UIViewController that wraps a WKWebView, which the user uses to authenticate
+ with their OAuth2 cloud service. This process redirects back to the TWAIN Cloud service
+ with the accessToken and refreshToken as URL parameters.
+ 
+ We intercept this in a WKNavigationDelegate, below, store the tokens and then
+ pop back up the navigation stack.
+*/
+
 class AuthWebViewController: UIViewController {
 
     var apiURL: URL!
@@ -53,6 +62,17 @@ extension AuthWebViewController : WKNavigationDelegate {
                 appDelegate.cloudConnection = CloudConnection(apiURL: apiURL, accessToken: accessToken, refreshToken: refreshToken)
                 appDelegate.cloudConnection?.makeSelected()
                 vc.cloudConnection = appDelegate.cloudConnection
+                
+                // At this point, the user has on the navigation stack:
+                //   MainTableViewController
+                //   AuthWebViewController
+                //   This VC
+                // What we want is
+                //   MainTableViewController
+                //   ScannerPickerTableViewController
+                // So we'll update the navigation controller's view stack directly,
+                // removing two, adding one, and then let setViewControllers figure
+                // out how to animate it.
                 
                 stack.removeLast()
                 stack.removeLast()

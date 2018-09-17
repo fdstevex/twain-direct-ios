@@ -8,10 +8,6 @@
 
 import Foundation
 
-extension Notification.Name {
-    static let cloudConnectionDidRefreshToken = Notification.Name("cloudConnectionDidRefreshToken")
-}
-
 /**
  * Manage a connection to a TWAIN Cloud service.
  * This includes the REST API and the MQTT events listener.
@@ -27,6 +23,7 @@ class CloudConnection {
     // OAuth2 Refresh Token
     var refreshToken: String?
 
+    // MQTT connection and message dispatcher
     lazy var dispatcher = CloudRequestDispatcher(cloudConnection: self)
     
     init(apiURL: URL, accessToken: String, refreshToken: String?) {
@@ -35,48 +32,48 @@ class CloudConnection {
         self.refreshToken = refreshToken
     }
     
+    // Get the list of scanners available
     func getScannerList(completionHandler: @escaping (AsyncResponse<[ScannerInfo]>)->()) {
-        getEventBrokerInfo() { response in
-            self.getScannerListJSON() { response in
-                guard case .Success(let data) = response else {
-                    // Pass along the error if there is one
-                    if case .Failure(let error) = response {
-                        completionHandler(.Failure(error))
-                    } else {
-                        completionHandler(.Failure(nil))
-                    }
-                    return
+        self.getScannerListJSON() { response in
+            guard case .Success(let data) = response else {
+                // Pass along the error if there is one
+                if case .Failure(let error) = response {
+                    completionHandler(.Failure(error))
+                } else {
+                    completionHandler(.Failure(nil))
                 }
-
-                // Extract the info we need to populate an array of ScannerInfo
-                guard let array = try? JSONSerialization.jsonObject(with: data, options: []) else {
-                    completionHandler(.Failure(SessionError.invalidJSON))
-                    return;
-                }
-
-                var scanners = [ScannerInfo]()
-
-                if let array = array as? [NSDictionary] {
-                    for scannerDict in array {
-                        guard let name = scannerDict["name"] as? String,
-                            let note = scannerDict["description"] as? String,
-                            let id = scannerDict["id"] as? String else {
-                                log.warning("Unusable entry in scanners array: \(scannerDict)")
-                                continue
-                        }
-                        
-                        let scannerURL = self.apiURL.appendingPathComponent("scanners/" + id)
-                        let scannerInfo = ScannerInfo.cloudScannerInfo(url: scannerURL, name: name, note: note, APIURL: self.apiURL, scannerID: id, accessToken: self.accessToken, refreshToken: self.refreshToken)
-                        scanners.append(scannerInfo)
-                    }
-                }
-                
-                completionHandler(AsyncResponse.Success(scanners))
+                return
             }
+            
+            // Extract the info we need to populate an array of ScannerInfo
+            guard let array = try? JSONSerialization.jsonObject(with: data, options: []) else {
+                completionHandler(.Failure(SessionError.invalidJSON))
+                return;
+            }
+            
+            var scanners = [ScannerInfo]()
+            
+            if let array = array as? [NSDictionary] {
+                for scannerDict in array {
+                    guard let name = scannerDict["name"] as? String,
+                        let note = scannerDict["description"] as? String,
+                        let id = scannerDict["id"] as? String else {
+                            log.warning("Unusable entry in scanners array: \(scannerDict)")
+                            continue
+                    }
+                    
+                    let scannerURL = self.apiURL.appendingPathComponent("scanners/" + id)
+                    let scannerInfo = ScannerInfo.cloudScannerInfo(url: scannerURL, name: name, note: note, APIURL: self.apiURL, scannerID: id, accessToken: self.accessToken, refreshToken: self.refreshToken)
+                    scanners.append(scannerInfo)
+                }
+            }
+            
+            completionHandler(AsyncResponse.Success(scanners))
         }
     }
 
-    func getData(endpoint: String, completionHandler: @escaping (AsyncResponse<Data>)->()) {
+    // Helper function that makes a call to cloud API endpoint and returns the response data.
+    private func getData(endpoint: String, completionHandler: @escaping (AsyncResponse<Data>)->()) {
         let url = apiURL.appendingPathComponent(endpoint)
         var request = URLRequest(url: url)
         request.setValue(accessToken, forHTTPHeaderField: "Authorization")
@@ -102,6 +99,8 @@ class CloudConnection {
         }
     }
     
+    // Get the CloudEventBrokerInfo from the cloud service, which includes the
+    // MQTT endpoint and topic to subscribe to.  Used by CloudSession when starting a session.
     func getEventBrokerInfo(_ completionHandler: @escaping (AsyncResponse<CloudEventBrokerInfo>)->()) {
         getData(endpoint: "user") { response in
             guard case .Success(let data) = response else {
@@ -127,7 +126,8 @@ class CloudConnection {
         }
     }
     
-    func getScannerListJSON(_ completionHandler: @escaping (AsyncResponse<Data>)->()) {
+    // Get the list of scanners.  Helper for getScannerList;
+    private func getScannerListJSON(_ completionHandler: @escaping (AsyncResponse<Data>)->()) {
         getData(endpoint: "scanners") { response in
             guard case .Success(let data) = response else {
                 // Pass along the error if there is one
@@ -142,13 +142,17 @@ class CloudConnection {
             completionHandler(AsyncResponse.Success(data))
         }
     }
-    
+}
+
+// Settings related items
+extension CloudConnection {
     enum SettingsKeys: String {
         case apiURL = "cloudScannerAPIURL"
         case accessToken = "cloudAccessToken"
         case refreshToken = "cloudRefreshToken"
     }
     
+    // Save the current URL and tokens to UserDefaults
     func makeSelected() {
         let defaults = UserDefaults.standard
         defaults.set(apiURL, forKey: SettingsKeys.apiURL.rawValue)
@@ -156,6 +160,7 @@ class CloudConnection {
         defaults.set(refreshToken, forKey: SettingsKeys.refreshToken.rawValue)
     }
     
+    // Restore the saved CloudConnection from UserDefaults
     static func restoreSelected() -> CloudConnection? {
         guard let scannerAPIURL = UserDefaults.standard.url(forKey: SettingsKeys.apiURL.rawValue) else {
             return nil
