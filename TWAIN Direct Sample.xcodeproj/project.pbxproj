@@ -25,13 +25,6 @@
 		846F7D281F801D49004E6EB2 /* ImageReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846F7D271F801D49004E6EB2 /* ImageReceiver.swift */; };
 		846F7D2A1F828D55004E6EB2 /* ImagesTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846F7D291F828D55004E6EB2 /* ImagesTableViewController.swift */; };
 		8474E2561F7D653200B497A2 /* multipart_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 8474E2541F7D653200B497A2 /* multipart_parser.c */; };
-		84A1C6C51F74420F0062C442 /* AES256CBC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A1C6C31F7441CF0062C442 /* AES256CBC.swift */; };
-		84A1C6C61F74420F0062C442 /* Base64.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A1C6C01F7441CF0062C442 /* Base64.swift */; };
-		84A1C6C71F74420F0062C442 /* BaseDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A1C6BF1F7441CF0062C442 /* BaseDestination.swift */; };
-		84A1C6C81F74420F0062C442 /* ConsoleDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A1C6C11F7441CF0062C442 /* ConsoleDestination.swift */; };
-		84A1C6C91F74420F0062C442 /* FileDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A1C6C41F7441CF0062C442 /* FileDestination.swift */; };
-		84A1C6CA1F74420F0062C442 /* Filter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A1C6C21F7441CF0062C442 /* Filter.swift */; };
-		84A1C6CB1F74420F0062C442 /* SwiftyBeaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A1C6BE1F7441CF0062C442 /* SwiftyBeaver.swift */; };
 		84A1C6CD1F744E2F0062C442 /* ScannerInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A1C6CC1F744E2F0062C442 /* ScannerInfo.swift */; };
 		84B595951F743715009DD9A4 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84B595941F743715009DD9A4 /* AppDelegate.swift */; };
 		84B5959A1F743715009DD9A4 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 84B595981F743715009DD9A4 /* Main.storyboard */; };
@@ -69,13 +62,6 @@
 		8474E2531F7D653100B497A2 /* TWAIN Direct Sample-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "TWAIN Direct Sample-Bridging-Header.h"; sourceTree = "<group>"; };
 		8474E2541F7D653200B497A2 /* multipart_parser.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = multipart_parser.c; sourceTree = "<group>"; };
 		8474E2551F7D653200B497A2 /* multipart_parser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = multipart_parser.h; sourceTree = "<group>"; };
-		84A1C6BE1F7441CF0062C442 /* SwiftyBeaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftyBeaver.swift; sourceTree = "<group>"; };
-		84A1C6BF1F7441CF0062C442 /* BaseDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseDestination.swift; sourceTree = "<group>"; };
-		84A1C6C01F7441CF0062C442 /* Base64.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base64.swift; sourceTree = "<group>"; };
-		84A1C6C11F7441CF0062C442 /* ConsoleDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleDestination.swift; sourceTree = "<group>"; };
-		84A1C6C21F7441CF0062C442 /* Filter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Filter.swift; sourceTree = "<group>"; };
-		84A1C6C31F7441CF0062C442 /* AES256CBC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AES256CBC.swift; sourceTree = "<group>"; };
-		84A1C6C41F7441CF0062C442 /* FileDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDestination.swift; sourceTree = "<group>"; };
 		84A1C6CC1F744E2F0062C442 /* ScannerInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerInfo.swift; sourceTree = "<group>"; };
 		84B595911F743715009DD9A4 /* TWAIN Direct Sample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "TWAIN Direct Sample.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		84B595941F743715009DD9A4 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -157,23 +143,8 @@
 			isa = PBXGroup;
 			children = (
 				8474E2571F7D655400B497A2 /* multipart */,
-				84A1C6BD1F7441AF0062C442 /* SwiftyBeaver */,
 			);
 			path = ThirdParty;
-			sourceTree = "<group>";
-		};
-		84A1C6BD1F7441AF0062C442 /* SwiftyBeaver */ = {
-			isa = PBXGroup;
-			children = (
-				84A1C6C31F7441CF0062C442 /* AES256CBC.swift */,
-				84A1C6C01F7441CF0062C442 /* Base64.swift */,
-				84A1C6BF1F7441CF0062C442 /* BaseDestination.swift */,
-				84A1C6C11F7441CF0062C442 /* ConsoleDestination.swift */,
-				84A1C6C41F7441CF0062C442 /* FileDestination.swift */,
-				84A1C6C21F7441CF0062C442 /* Filter.swift */,
-				84A1C6BE1F7441CF0062C442 /* SwiftyBeaver.swift */,
-			);
-			path = SwiftyBeaver;
 			sourceTree = "<group>";
 		};
 		84B595881F743715009DD9A4 = {
@@ -275,7 +246,7 @@
 				TargetAttributes = {
 					84B595901F743715009DD9A4 = {
 						CreatedOnToolsVersion = 9.0;
-						LastSwiftMigration = 0900;
+						LastSwiftMigration = 1000;
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.iCloud = {
@@ -344,11 +315,13 @@
 				"${SRCROOT}/Pods/Target Support Files/Pods-TWAIN Direct Sample/Pods-TWAIN Direct Sample-frameworks.sh",
 				"${BUILT_PRODUCTS_DIR}/MQTTClient/MQTTClient.framework",
 				"${BUILT_PRODUCTS_DIR}/SocketRocket/SocketRocket.framework",
+				"${BUILT_PRODUCTS_DIR}/SwiftyBeaver/SwiftyBeaver.framework",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MQTTClient.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SocketRocket.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SwiftyBeaver.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -362,12 +335,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				84A1C6CB1F74420F0062C442 /* SwiftyBeaver.swift in Sources */,
 				84A1C6CD1F744E2F0062C442 /* ScannerInfo.swift in Sources */,
 				84FD55AF214E623400B048CD /* CloudRequestDispatcher.swift in Sources */,
 				84189C2A213D42A00075EAF2 /* CloudConnection.swift in Sources */,
-				84A1C6C51F74420F0062C442 /* AES256CBC.swift in Sources */,
-				84A1C6C91F74420F0062C442 /* FileDestination.swift in Sources */,
 				844C6C16214135EB00A5AD92 /* CloudEventBroker.swift in Sources */,
 				84189C24213C1C650075EAF2 /* AuthWebViewController.swift in Sources */,
 				843963991F798B1300115128 /* TaskPickerTableViewController.swift in Sources */,
@@ -376,22 +346,18 @@
 				843963961F797D6700115128 /* ScannerPickerTableViewController.swift in Sources */,
 				841AEEDB2142941D00B26340 /* LocalScannerRPC.swift in Sources */,
 				84692A631F87AFBD00E138FE /* RequestBodies.swift in Sources */,
-				84A1C6C81F74420F0062C442 /* ConsoleDestination.swift in Sources */,
 				84C96AA51F758F7200F2038D /* Session.swift in Sources */,
 				841AEED7214292B800B26340 /* ScannerRPC.swift in Sources */,
 				84B595A81F7437C4009DD9A4 /* ServiceDiscoverer.swift in Sources */,
 				846F7D2A1F828D55004E6EB2 /* ImagesTableViewController.swift in Sources */,
-				84A1C6C61F74420F0062C442 /* Base64.swift in Sources */,
 				8474E2561F7D653200B497A2 /* multipart_parser.c in Sources */,
 				84B595951F743715009DD9A4 /* AppDelegate.swift in Sources */,
 				841AEED92142941100B26340 /* CloudScannerRPC.swift in Sources */,
 				8441CB181F8104AA0049D02E /* TaskDownloaderWebViewController.swift in Sources */,
 				84C4B5221F8FC62100456217 /* MultipartExtractor.swift in Sources */,
 				846F7D281F801D49004E6EB2 /* ImageReceiver.swift in Sources */,
-				84A1C6CA1F74420F0062C442 /* Filter.swift in Sources */,
 				844C6C1821413B7E00A5AD92 /* CloudSession.swift in Sources */,
 				84B6A6A31F7C24B90024F4A5 /* BlockDownloader.swift in Sources */,
-				84A1C6C71F74420F0062C442 /* BaseDestination.swift in Sources */,
 				84189C22213C1BCD0075EAF2 /* CloudAuthViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -545,7 +511,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "TWAIN Direct Sample/TWAIN Direct/TWAIN Direct Sample-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 4.2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -565,7 +531,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "org.twaindirect.TWAIN-Direct-Sample";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "TWAIN Direct Sample/TWAIN Direct/TWAIN Direct Sample-Bridging-Header.h";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 4.2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;

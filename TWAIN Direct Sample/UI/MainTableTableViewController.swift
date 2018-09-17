@@ -34,7 +34,7 @@ class MainTableTableViewController: UITableViewController {
         super.viewDidLoad()
 
         self.tableView.estimatedRowHeight = 44
-        self.tableView.rowHeight = UITableViewAutomaticDimension
+        self.tableView.rowHeight = UITableView.automaticDimension
         
         NotificationCenter.default.addObserver(forName:.scannedImagesUpdatedNotification, object: nil, queue: OperationQueue.main) { notification in
             if let data = notification.object as? ImagesUpdatedNotificationData {
@@ -187,7 +187,7 @@ class MainTableTableViewController: UITableViewController {
                 webView.load(request)
                 vc.view = webView
          
-                vc.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.action, target: self, action: #selector(self.didTapShareLog))
+                vc.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonItem.SystemItem.action, target: self, action: #selector(self.didTapShareLog))
                 self.navigationController?.pushViewController(vc, animated: true)
             }
         }))

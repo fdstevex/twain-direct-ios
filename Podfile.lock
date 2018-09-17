@@ -11,20 +11,24 @@ PODS:
     - MQTTClient/Min
     - SocketRocket
   - SocketRocket (0.5.1)
+  - SwiftyBeaver (1.6.0)
 
 DEPENDENCIES:
   - MQTTClient (~> 0.15.2)
   - MQTTClient/Websocket (~> 0.15.2)
+  - SwiftyBeaver (~> 1.6.0)
 
 SPEC REPOS:
   https://github.com/cocoapods/specs.git:
     - MQTTClient
     - SocketRocket
+    - SwiftyBeaver
 
 SPEC CHECKSUMS:
   MQTTClient: 902c7bcac1501595f3d0b15178c7205b40331fb0
   SocketRocket: d57c7159b83c3c6655745cd15302aa24b6bae531
+  SwiftyBeaver: e45759613e50b522b0e6f53b1f0f14389b45ca34
 
-PODFILE CHECKSUM: 3692e4bf3168802a35ddec67b23076f8054a3732
+PODFILE CHECKSUM: a60209877eb6dc9650ce9baae220f021e147dae8
 
 COCOAPODS: 1.5.3

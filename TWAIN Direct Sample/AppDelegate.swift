@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import SwiftyBeaver
 
 let log = SwiftyBeaver.self
 
@@ -23,7 +24,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // SwiftyBeaver Log file destination, so we can find it from the log view
     var fileDestination = FileDestination()
 
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
         setupLogging()
         log.info("App started")
@@ -43,7 +44,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         log.addDestination(fileDestination)
     }
     
-    func application(_ app: UIApplication, open url: URL, options: [UIApplicationOpenURLOptionsKey : Any] = [:]) -> Bool {
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
 
         if url.pathExtension == "tdt" {
             log.info("Received task file: \(url.lastPathComponent)")

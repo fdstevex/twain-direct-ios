@@ -8,4 +8,5 @@ target 'TWAIN Direct Sample' do
   # Pods for TWAIN Direct Sample
   pod 'MQTTClient', '~> 0.15.2'
   pod 'MQTTClient/Websocket', '~> 0.15.2'
+  pod 'SwiftyBeaver', '~> 1.6.0', :inhibit_warnings => true
 end
