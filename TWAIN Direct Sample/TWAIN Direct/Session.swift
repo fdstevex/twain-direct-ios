@@ -230,39 +230,51 @@ class Session : NSObject {
             delegate?.session(self, didChangeStatus: sessionStatus?.detected, success: sessionStatus?.success ?? false)
         }
     }
-    
-    // Get a Privet token, and open a session with the scanner
-    func open(completion: @escaping (AsyncResult)->()) {
+
+    func getScannerInfo(completion: @escaping (AsyncResponse<InfoExResponse>)->()) {
         log.verbose("Session: Opening session (sending infoex request)")
         let requestURL = url.appendingPathComponent("privet/infoex")
-
+        
         do {
             try rpc?.scannerRequest(url: requestURL, method: "GET", requestBody: nil, commandId: "infoex", completion: { (response, _) in
                 switch response {
-                case AsyncResponse.Failure(let error):
-                    completion(AsyncResult.Failure(error))
-                case AsyncResponse.Success(let data):
+                case .Failure(let error):
+                    completion(.Failure(error))
+                case .Success(let data):
                     do {
                         let infoExResponse = try JSONDecoder().decode(InfoExResponse.self, from: data)
-                        log.verbose("Session: Received infoex response")
-                        self.rpc?.setPrivetToken(infoExResponse.privetToken)
-                        guard var apiPath = infoExResponse.api?.first else {
-                            log.info("Expected api property in infoex response")
-                            completion(AsyncResult.Failure(nil))
-                            return
-                        }
-                        if apiPath.starts(with: "/") {
-                            apiPath.remove(at: apiPath.startIndex)
-                        }
-                        self.apiURL = self.url.appendingPathComponent(apiPath)
-                        self.createSession(completion: completion)
+                        completion(.Success(infoExResponse))
                     } catch {
-                        completion(AsyncResult.Failure(error))
+                        completion(.Failure(error))
                     }
                 }
             })
         } catch {
-            completion(AsyncResult.Failure(error))
+            completion(.Failure(error))
+        }
+    }
+    
+    // Get a Privet token, and open a session with the scanner
+    func open(completion: @escaping (AsyncResult)->()) {
+        log.verbose("Session: Opening session (sending infoex request)")
+        getScannerInfo { (response) in
+            switch (response) {
+            case .Failure(let error):
+                completion(.Failure(error))
+            case .Success(let infoExResponse):
+                log.verbose("Session: Received infoex response")
+                self.rpc?.setPrivetToken(infoExResponse.privetToken)
+                guard var apiPath = infoExResponse.api?.first else {
+                    log.info("Expected api property in infoex response")
+                    completion(AsyncResult.Failure(nil))
+                    return
+                }
+                if apiPath.starts(with: "/") {
+                    apiPath.remove(at: apiPath.startIndex)
+                }
+                self.apiURL = self.url.appendingPathComponent(apiPath)
+                self.createSession(completion: completion)
+            }
         }
     }
 

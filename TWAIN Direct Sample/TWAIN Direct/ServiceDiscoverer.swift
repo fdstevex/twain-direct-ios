@@ -14,7 +14,7 @@ protocol ServiceDiscovererDelegate: class {
 }
 
 class ServiceDiscoverer : NSObject {
-    // Map if discovered scanners - the key is the URL of the host plus the
+    // Map of discovered scanners - the key is the URL of the host plus the
     // friendly name of the scanner.
     var discoveredScanners = [String:ScannerInfo]()
 
@@ -117,7 +117,7 @@ extension ServiceDiscoverer : NetServiceDelegate {
         if let scannerInfo = scannerInfoFrom(service:sender) {
             let key = "\(scannerInfo.url.absoluteString)\(String(describing:scannerInfo.name))"
             
-            log.info("Discovered scannerInfo.name at \(scannerInfo.url)")
+            log.info("Discovered \(scannerInfo.name) at \(scannerInfo.url)")
             discoveredScanners[key] = scannerInfo
             delegate?.discoverer(self, didDiscover: Array(discoveredScanners.values))
         }

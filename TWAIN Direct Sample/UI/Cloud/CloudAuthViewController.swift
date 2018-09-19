@@ -48,4 +48,12 @@ class CloudAuthViewController: UIViewController {
     @IBAction func didTapAuthenticateWithGoogle(_ sender: Any) {
         authenticate("google")
     }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if let discoverVC = segue.destination as? CloudDiscoverTableViewController {
+            discoverVC.cloudSelectedHandler = { url in
+                self.apiField.text = url.absoluteString
+            }
+        }
+    }
 }

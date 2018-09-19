@@ -12,6 +12,11 @@ import Foundation
 // responses for the TWAIN Direct commands we're using. Not every
 // property is represented.
 
+struct CloudInfo : Decodable {
+    var url: URL
+    var id: String
+}
+
 struct InfoExResponse : Decodable {
     enum CodingKeys: String, CodingKey {
         case type
@@ -21,6 +26,7 @@ struct InfoExResponse : Decodable {
         case manufacturer
         case model
         case privetToken = "x-privet-token"
+        case clouds
     }
     var type: String
     var version: String?
@@ -29,6 +35,7 @@ struct InfoExResponse : Decodable {
     var manufacturer: String?
     var model: String?
     var privetToken: String
+    var clouds: [CloudInfo]?
 }
 
 struct CloseSessionRequest : Codable {
